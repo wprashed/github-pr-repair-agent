@@ -1,0 +1,221 @@
+repositories:
+- name: WordPress-ai
+  github: WordPress/ai
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: WordPress-performance
+  github: WordPress/performance
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: _s
+  github: Automattic/_s
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: underscores.me
+  github: Automattic/underscores.me
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: gutenberg
+  github: WordPress/gutenberg
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: openverse
+  github: WordPress/openverse
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: wordcamp.org
+  github: WordPress/wordcamp.org
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: wordpress-develop
+  github: WordPress/wordpress-develop
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: wordpress.org
+  github: WordPress/wordpress.org
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true
+- name: storefront
+  github: woocommerce/storefront
+  enabled: true
+  pull_requests:
+    only_my_prs: true
+    only_open_prs: true
+  checks:
+    test: []
+    lint: []
+    static_analysis: []
+    security: []
+    build: []
+  safety:
+    max_files_changed: 20
+    max_lines_added: 1000
+    max_lines_deleted: 1000
+    allow_new_files: true
+    allow_deleted_files: false
+    allow_workflow_changes: false
+  repair:
+    max_attempts: 3
+    retry_failed_repairs: true

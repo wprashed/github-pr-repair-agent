@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "github-pr-repair-agent"
+version = "0.1.0"
+description = "Autonomous GitHub Pull Request Repair Agent with Antigravity"
+readme = "README.md"
+authors = [{ name = "Autonomous PR Agent Team" }]
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "pyyaml>=6.0.1",
+    "sqlalchemy>=2.0.28",
+    "aiosqlite>=0.20.0",
+    "apscheduler>=3.10.4",
+    "gitpython>=3.1.42",
+    "click>=8.1.7",
+    "rich>=13.7.1",
+    "httpx>=0.27.0",
+    "aiohttp>=3.9.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[project.scripts]
+pr-agent = "app.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

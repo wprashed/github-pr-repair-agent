@@ -1,0 +1,2122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRRepair • Autonomous GitHub PR Repair Platform</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 9999px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+  </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-900 min-h-screen antialiased selection:bg-indigo-100 selection:text-indigo-900">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- Modern SaaS Icons ---
+    const IconPR = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/>
+      </svg>
+    );
+
+    const IconRepo = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/>
+      </svg>
+    );
+
+    const IconCpu = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>
+      </svg>
+    );
+
+    const IconShield = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/>
+      </svg>
+    );
+
+    const IconAlert = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    );
+
+    const IconSearch = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+      </svg>
+    );
+
+    const IconSettings = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+    );
+
+    const IconRefresh = ({ spinning }) => (
+      <svg className={`w-4 h-4 ${spinning ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/>
+      </svg>
+    );
+
+    const IconGitBranch = () => (
+      <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>
+      </svg>
+    );
+
+    const IconSparkles = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+      </svg>
+    );
+
+    const IconExternal = () => (
+      <svg className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+    );
+
+    const IconGitHubLogo = () => (
+      <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+      </svg>
+    );
+
+    const IconTable = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/>
+      </svg>
+    );
+
+    const IconGrid = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+      </svg>
+    );
+
+    function App() {
+      const [stats, setStats] = useState(null);
+      const [prs, setPrs] = useState([]);
+      const [selectedPr, setSelectedPr] = useState(null);
+      const [repairs, setRepairs] = useState([]);
+      const [filterStatus, setFilterStatus] = useState("ALL");
+      const [searchTerm, setSearchTerm] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [actionMsg, setActionMsg] = useState("");
+      const [viewMode, setViewMode] = useState("table"); // "table" or "cards"
+      const [activeNav, setActiveNav] = useState("prs"); // "prs", "repos", "agent", "settings"
+
+      // Settings State
+      const [integrations, setIntegrations] = useState(null);
+      const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+      const [ghAuthMode, setGhAuthMode] = useState("device");
+      const [ghToken, setGhToken] = useState("");
+      const [ghUser, setGhUser] = useState("");
+      const [agProvider, setAgProvider] = useState("antigravity");
+      const [agBin, setAgBin] = useState("");
+      const [agModel, setAgModel] = useState("flash");
+      const [agAuthStatus, setAgAuthStatus] = useState(null);
+
+      // GitHub Device Flow State
+      const [deviceFlow, setDeviceFlow] = useState(null);
+      const [devicePolling, setDevicePolling] = useState(false);
+      const [devicePollMsg, setDevicePollMsg] = useState("");
+      const [deviceInitError, setDeviceInitError] = useState(null);
+      const [deviceSuccessUser, setDeviceSuccessUser] = useState(null);
+      const [copiedCode, setCopiedCode] = useState(false);
+      const pollingRef = useRef(false);
+      const pollInFlightRef = useRef(false);
+
+      // Repositories State
+      const [settingsTab, setSettingsTab] = useState("github");
+      const [monitoredRepos, setMonitoredRepos] = useState([]);
+      const [userGhRepos, setUserGhRepos] = useState([]);
+      const [loadingRepos, setLoadingRepos] = useState(false);
+      const [loadingUserGhRepos, setLoadingUserGhRepos] = useState(false);
+      const [newRepoInput, setNewRepoInput] = useState("");
+      const [addingRepo, setAddingRepo] = useState(false);
+      const [discoveringPrs, setDiscoveringPrs] = useState(false);
+      const [autoDiscoverResult, setAutoDiscoverResult] = useState(null);
+      const [selectedRepoFilter, setSelectedRepoFilter] = useState("ALL");
+
+      const [ghTestResult, setGhTestResult] = useState(null);
+      const [agTestResult, setAgTestResult] = useState(null);
+      const [testingGh, setTestingGh] = useState(false);
+      const [testingAg, setTestingAg] = useState(false);
+      const [savingSettings, setSavingSettings] = useState(false);
+      const [toasts, setToasts] = useState([]);
+      const [confirmModal, setConfirmModal] = useState(null);
+
+      const showToast = (message, type = "success") => {
+        const id = Date.now() + Math.random();
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => {
+          setToasts(prev => prev.filter(t => t.id !== id));
+        }, 4000);
+      };
+
+      const requestPrRepair = (pr) => {
+        if (!pr) return;
+        const repo = pr.repository || pr.repo_full_name || "";
+        if (repo.toLowerCase().includes("themeum")) {
+          showToast("Themeum repositories are permanently blocked from repairs.", "error");
+          return;
+        }
+        setConfirmModal({
+          title: "Trigger Autonomous Repair",
+          target: `#${pr.pr_number} • ${pr.title}`,
+          repo: repo,
+          description: `Are you sure you want to start an autonomous repair cycle for PR #${pr.pr_number} on ${repo}? The AI agent will inspect failed checks, diagnose root causes, and prepare verified code changes.`,
+          confirmLabel: "Start Repair",
+          type: "primary",
+          onConfirm: () => {
+            setConfirmModal(null);
+            handleTriggerRepair(pr.id);
+          },
+        });
+      };
+
+      const fetchStatus = async () => {
+        try {
+          const res = await fetch("/api/status");
+          if (res.ok) setStats(await res.json());
+        } catch (e) { console.error(e); }
+      };
+
+      const fetchPrs = async () => {
+        try {
+          let url = "/api/pull-requests";
+          const params = [];
+          if (filterStatus !== "ALL") params.push(`status=${filterStatus}`);
+          if (selectedRepoFilter !== "ALL") params.push(`repo=${encodeURIComponent(selectedRepoFilter)}`);
+          if (params.length > 0) url += `?${params.join("&")}`;
+
+          const res = await fetch(url);
+          if (res.ok) setPrs(await res.json());
+        } catch (e) { console.error(e); }
+      };
+
+      const fetchRepositories = async () => {
+        setLoadingRepos(true);
+        try {
+          const res = await fetch("/api/repositories");
+          if (res.ok) setMonitoredRepos(await res.json());
+        } catch (e) { console.error(e); }
+        finally { setLoadingRepos(false); }
+      };
+
+      const fetchUserGhRepos = async () => {
+        setLoadingUserGhRepos(true);
+        try {
+          const res = await fetch("/api/github/user/repositories");
+          if (res.ok) setUserGhRepos(await res.json());
+        } catch (e) { console.error(e); }
+        finally { setLoadingUserGhRepos(false); }
+      };
+
+      const handleAutoDiscover = async () => {
+        setDiscoveringPrs(true);
+        setAutoDiscoverResult(null);
+        setActionMsg("Scanning GitHub for open PRs...");
+        try {
+          const res = await fetch("/api/github/auto-discover", { method: "POST" });
+          const data = await res.json();
+          if (res.ok) {
+            setAutoDiscoverResult(data);
+            setActionMsg(data.message || `Found ${data.discovered_prs_count} open PRs!`);
+            showToast(data.message || `Discovered ${data.discovered_prs_count} pull requests!`, "success");
+            await fetchRepositories();
+            await fetchStatus();
+            await fetchPrs();
+          } else {
+            showToast(data.detail || "Auto-discover failed", "error");
+          }
+        } catch (e) {
+          showToast("Error: " + e.message, "error");
+        } finally {
+          setDiscoveringPrs(false);
+        }
+      };
+
+      const handleAddRepository = async (repoName) => {
+        const repoToAdd = (repoName || newRepoInput).trim();
+        if (!repoToAdd || !repoToAdd.includes("/")) {
+          showToast("Please enter repository in owner/repo format (e.g. facebook/react)", "error");
+          return;
+        }
+        setAddingRepo(true);
+        try {
+          const res = await fetch("/api/repositories", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ github: repoToAdd }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setNewRepoInput("");
+            showToast(`Repository ${repoToAdd} added successfully!`, "success");
+            await fetchRepositories();
+            await fetchStatus();
+            await fetchPrs();
+          } else {
+            showToast(data.detail || "Failed to add repository", "error");
+          }
+        } catch (e) {
+          showToast("Error: " + e.message, "error");
+        } finally {
+          setAddingRepo(false);
+        }
+      };
+
+      const handleToggleRepo = async (github) => {
+        try {
+          const res = await fetch(`/api/repositories/${github}/toggle`, { method: "POST" });
+          if (res.ok) {
+            await fetchRepositories();
+            await fetchStatus();
+          }
+        } catch (e) { console.error(e); }
+      };
+
+      const handleRemoveRepo = (github) => {
+        setConfirmModal({
+          title: "Remove Monitored Repository",
+          target: github,
+          description: `Are you sure you want to remove "${github}" from monitored repositories? The agent will stop tracking pull requests for this repository.`,
+          confirmLabel: "Remove Repository",
+          type: "danger",
+          onConfirm: async () => {
+            setConfirmModal(null);
+            try {
+              const res = await fetch(`/api/repositories/${github}`, { method: "DELETE" });
+              if (res.ok) {
+                showToast(`Removed repository ${github}`, "info");
+                await fetchRepositories();
+                await fetchStatus();
+                await fetchPrs();
+              }
+            } catch (e) {
+              showToast("Failed to remove repository", "error");
+            }
+          },
+        });
+      };
+
+      const fetchIntegrations = async () => {
+        try {
+          const res = await fetch("/api/settings/integrations");
+          if (res.ok) {
+            const data = await res.json();
+            setIntegrations(data);
+            if (!ghUser && data.github.username) setGhUser(data.github.username);
+            if (!agBin && data.antigravity.bin_path) setAgBin(data.antigravity.bin_path);
+            if (data.antigravity.model) setAgModel(data.antigravity.model);
+            if (data.antigravity.provider) setAgProvider(data.antigravity.provider);
+          }
+        } catch (e) { console.error(e); }
+      };
+
+      const fetchAgAuth = async () => {
+        try {
+          const res = await fetch("/api/auth/antigravity/status");
+          if (res.ok) setAgAuthStatus(await res.json());
+        } catch (e) { console.error(e); }
+      };
+
+      const pollOnce = async (flow) => {
+        if (!flow || !flow.device_code) return false;
+        if (pollInFlightRef.current) return false;
+        pollInFlightRef.current = true;
+        try {
+          const res = await fetch("/api/auth/github/device/poll", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              client_id: flow.client_id,
+              device_code: flow.device_code,
+            }),
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            pollingRef.current = false;
+            setDevicePolling(false);
+            setDeviceFlow(null);
+            setDeviceSuccessUser(data.user || { login: data.username });
+            setDevicePollMsg(`Authenticated as @${data.username}!`);
+            await fetchIntegrations();
+            await fetchStatus();
+            return true;
+          } else if (data.pending) {
+            if (data.error === "slow_down") {
+              setDevicePollMsg(`Waiting: checking every ${data.interval || 10}s...`);
+            } else {
+              setDevicePollMsg("Waiting for your authorization in browser...");
+            }
+            return false;
+          } else {
+            pollingRef.current = false;
+            setDevicePolling(false);
+            setDeviceFlow(null);
+            setDeviceInitError(`Authorization ended: ${data.error_description || data.error}`);
+            return true;
+          }
+        } catch (e) {
+          console.error("Device poll error:", e);
+          return false;
+        } finally {
+          pollInFlightRef.current = false;
+        }
+      };
+
+      const startDeviceFlow = async () => {
+        setDeviceFlow(null);
+        setDeviceSuccessUser(null);
+        setDeviceInitError(null);
+        setDevicePollMsg("Requesting authorization code from GitHub...");
+        setDevicePolling(true);
+        pollingRef.current = true;
+        try {
+          const res = await fetch("/api/auth/github/device/start", { method: "POST" });
+          const data = await res.json();
+          if (res.ok && data.user_code && data.verification_uri) {
+            setDeviceFlow(data);
+            setDevicePollMsg("Waiting for your authorization in browser...");
+
+            const intervalSec = Math.max(data.interval || 5, 5);
+            const runLoop = async () => {
+              if (!pollingRef.current) return;
+              const done = await pollOnce(data);
+              if (!done && pollingRef.current) {
+                setTimeout(runLoop, intervalSec * 1000);
+              }
+            };
+            setTimeout(runLoop, intervalSec * 1000);
+          } else {
+            setDeviceInitError(data.error || "Failed to initiate device authorization.");
+            setDevicePolling(false);
+            pollingRef.current = false;
+          }
+        } catch (e) {
+          setDeviceInitError("Error initiating authorization: " + e.message);
+          setDevicePolling(false);
+          pollingRef.current = false;
+        }
+      };
+
+      const cancelDeviceFlow = () => {
+        pollingRef.current = false;
+        setDevicePolling(false);
+        setDeviceFlow(null);
+        setDeviceInitError(null);
+      };
+
+      const disconnectGitHub = () => {
+        setConfirmModal({
+          title: "Disconnect GitHub Account",
+          target: integrations?.github?.username ? `@${integrations.github.username}` : null,
+          description: "Are you sure you want to disconnect your GitHub account? Active synchronization and background repository scans will be paused until you reconnect.",
+          confirmLabel: "Disconnect Account",
+          type: "danger",
+          onConfirm: async () => {
+            setConfirmModal(null);
+            try {
+              await fetch("/api/auth/github/disconnect", { method: "POST" });
+              setDeviceSuccessUser(null);
+              setDeviceFlow(null);
+              setGhToken("");
+              setGhUser("");
+              setGhTestResult(null);
+              showToast("GitHub account disconnected.", "info");
+              await fetchIntegrations();
+              await fetchStatus();
+            } catch (e) {
+              showToast("Failed to disconnect: " + e.message, "error");
+            }
+          },
+        });
+      };
+
+      useEffect(() => {
+        fetchStatus();
+        fetchPrs();
+        fetchIntegrations();
+        fetchAgAuth();
+        fetchRepositories();
+        const interval = setInterval(() => {
+          fetchStatus();
+          fetchPrs();
+        }, 5000);
+        return () => clearInterval(interval);
+      }, [filterStatus, selectedRepoFilter]);
+
+      useEffect(() => {
+        if (isSettingsOpen) {
+          fetchRepositories();
+          if (integrations?.github?.token_configured) {
+            fetchUserGhRepos();
+          }
+        }
+      }, [isSettingsOpen]);
+
+      const handleScanNow = async () => {
+        setLoading(true);
+        setActionMsg("Triggering immediate scan across all repositories...");
+        try {
+          await fetch("/api/scan", { method: "POST" });
+          setTimeout(() => {
+            fetchStatus();
+            fetchPrs();
+            setActionMsg("Scan completed.");
+            showToast("Repository scan completed.", "success");
+            setLoading(false);
+          }, 2000);
+        } catch (e) {
+          setActionMsg("Scan trigger failed.");
+          showToast("Failed to trigger scan.", "error");
+          setLoading(false);
+        }
+      };
+
+      const openPrDetails = async (pr) => {
+        setSelectedPr(pr);
+        try {
+          const prDetailRes = await fetch(`/api/pull-requests/${pr.id}`);
+          if (prDetailRes.ok) setSelectedPr(await prDetailRes.json());
+          const repairsRes = await fetch(`/api/pull-requests/${pr.id}/repairs`);
+          if (repairsRes.ok) setRepairs(await repairsRes.json());
+        } catch (e) { console.error(e); }
+      };
+
+      const handleApprove = async (prId) => {
+        try {
+          const res = await fetch(`/api/pull-requests/${prId}/approve`, { method: "POST" });
+          const data = await res.json();
+          showToast(data.message || "Approved!", "success");
+          openPrDetails(selectedPr);
+          fetchPrs();
+        } catch (e) { showToast("Failed to approve", "error"); }
+      };
+
+      const handleTriggerRepair = async (prId) => {
+        try {
+          const res = await fetch(`/api/pull-requests/${prId}/repair`, { method: "POST" });
+          const data = await res.json();
+          showToast(data.message || "Repair Queued!", "info");
+          fetchPrs();
+        } catch (e) { showToast("Failed to trigger repair", "error"); }
+      };
+
+      const testGitHub = async () => {
+        setTestingGh(true);
+        setGhTestResult(null);
+        try {
+          const res = await fetch("/api/settings/test-github", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: ghToken, username: ghUser }),
+          });
+          const data = await res.json();
+          setGhTestResult(data);
+        } catch (e) {
+          setGhTestResult({ success: false, error: e.message });
+        } finally {
+          setTestingGh(false);
+        }
+      };
+
+      const testAntigravity = async () => {
+        setTestingAg(true);
+        setAgTestResult(null);
+        try {
+          const res = await fetch("/api/settings/test-antigravity", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bin_path: agBin, model: agModel, provider: agProvider }),
+          });
+          const data = await res.json();
+          setAgTestResult(data);
+        } catch (e) {
+          setAgTestResult({ success: false, error: e.message });
+        } finally {
+          setTestingAg(false);
+        }
+      };
+
+      const saveIntegrations = async () => {
+        setSavingSettings(true);
+        try {
+          const payload = {
+            github: {
+              token: ghToken || undefined,
+              username: ghUser || undefined,
+            },
+            antigravity: {
+              provider: agProvider,
+              bin_path: agBin || undefined,
+              model: agModel,
+            },
+          };
+          const res = await fetch("/api/settings/integrations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            showToast("Settings saved successfully!", "success");
+            fetchIntegrations();
+            setIsSettingsOpen(false);
+          } else {
+            showToast("Failed to save settings.", "error");
+          }
+        } catch (e) {
+          showToast("Error saving settings: " + e.message, "error");
+        } finally {
+          setSavingSettings(false);
+        }
+      };
+
+      const getStatusBadge = (status) => {
+        const configs = {
+          MONITORING: {
+            bg: "bg-sky-50 text-sky-700 border-sky-200/80 ring-1 ring-sky-200/50",
+            dot: "bg-sky-500",
+            label: "Monitoring",
+          },
+          NEEDS_REPAIR: {
+            bg: "bg-amber-50 text-amber-800 border-amber-200/80 ring-1 ring-amber-200/50",
+            dot: "bg-amber-500 animate-pulse",
+            label: "Needs Repair",
+          },
+          PREPARING: {
+            bg: "bg-purple-50 text-purple-700 border-purple-200/80 ring-1 ring-purple-200/50",
+            dot: "bg-purple-500 animate-ping",
+            label: "Preparing",
+          },
+          AGENT_RUNNING: {
+            bg: "bg-indigo-50 text-indigo-700 border-indigo-200/80 ring-1 ring-indigo-200/50",
+            dot: "bg-indigo-500 animate-ping",
+            label: "Agent Running",
+          },
+          VERIFYING: {
+            bg: "bg-cyan-50 text-cyan-700 border-cyan-200/80 ring-1 ring-cyan-200/50",
+            dot: "bg-cyan-500 animate-pulse",
+            label: "Verifying",
+          },
+          DIFF_REVIEW: {
+            bg: "bg-teal-50 text-teal-700 border-teal-200/80",
+            dot: "bg-teal-500",
+            label: "Diff Review",
+          },
+          READY_TO_PUSH: {
+            bg: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+            dot: "bg-emerald-500",
+            label: "Ready to Push",
+          },
+          PUSHING: {
+            bg: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+            dot: "bg-emerald-500 animate-ping",
+            label: "Pushing",
+          },
+          WAITING_FOR_CI: {
+            bg: "bg-blue-50 text-blue-700 border-blue-200/80",
+            dot: "bg-blue-500 animate-pulse",
+            label: "Waiting CI",
+          },
+          FIXED: {
+            bg: "bg-emerald-50 text-emerald-700 border-emerald-200/80 ring-1 ring-emerald-200/50",
+            dot: "bg-emerald-500",
+            label: "Fixed",
+          },
+          FAILED: {
+            bg: "bg-rose-50 text-rose-700 border-rose-200/80 ring-1 ring-rose-200/50",
+            dot: "bg-rose-500",
+            label: "Failed",
+          },
+          REQUIRES_HUMAN_REVIEW: {
+            bg: "bg-amber-100 text-amber-900 border-amber-300 font-semibold ring-1 ring-amber-200 shadow-xs",
+            dot: "bg-amber-600 animate-ping",
+            label: "Human Review",
+          },
+        };
+        const cfg = configs[status] || {
+          bg: "bg-slate-100 text-slate-700 border-slate-200",
+          dot: "bg-slate-400",
+          label: status ? status.replace(/_/g, " ") : "Unknown",
+        };
+        return (
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${cfg.bg}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`}></span>
+            <span>{cfg.label}</span>
+          </span>
+        );
+      };
+
+      const renderAttempts = (attempts, maxAttempts) => {
+        const total = maxAttempts || 3;
+        const current = attempts || 0;
+        return (
+          <div className="inline-flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              {Array.from({ length: total }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${i < current ? (current >= total ? "bg-rose-500 ring-2 ring-rose-200 scale-110" : "bg-amber-500 ring-2 ring-amber-200") : "bg-slate-200"}`}
+                />
+              ))}
+            </div>
+            <span className={`font-mono text-xs whitespace-nowrap ${current > 0 ? (current >= total ? "text-rose-600 font-bold" : "text-amber-700 font-semibold") : "text-slate-400 font-medium"}`}>
+              {current}/{total}
+            </span>
+          </div>
+        );
+      };
+
+      const displayedPrs = prs.filter(pr => {
+        if (!searchTerm) return true;
+        const q = searchTerm.toLowerCase();
+        return (
+          pr.title.toLowerCase().includes(q) ||
+          pr.repository.toLowerCase().includes(q) ||
+          pr.branch.toLowerCase().includes(q) ||
+          String(pr.pr_number).includes(q) ||
+          (pr.author && pr.author.toLowerCase().includes(q))
+        );
+      });
+
+      const statusCounts = {
+        ALL: prs.length,
+        MONITORING: prs.filter(p => p.status === "MONITORING").length,
+        NEEDS_REPAIR: prs.filter(p => p.status === "NEEDS_REPAIR").length,
+        REQUIRES_HUMAN_REVIEW: prs.filter(p => p.status === "REQUIRES_HUMAN_REVIEW").length,
+        FIXED: prs.filter(p => p.status === "FIXED").length,
+        FAILED: prs.filter(p => p.status === "FAILED").length,
+      };
+
+      const statusTabLabels = {
+        ALL: "All",
+        MONITORING: "Monitoring",
+        NEEDS_REPAIR: "Needs Repair",
+        REQUIRES_HUMAN_REVIEW: "Review",
+        FIXED: "Fixed",
+        FAILED: "Failed",
+      };
+
+      return (
+        <div className="flex min-h-screen bg-[#F8FAFC]">
+          
+          {/* Left SaaS Sidebar */}
+          <aside className="w-64 bg-white border-r border-slate-200/80 flex-col justify-between hidden md:flex shrink-0 z-30">
+            <div>
+              {/* Sidebar Header Brand */}
+              <div className="h-16 px-6 border-b border-slate-200/80 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 font-bold">
+                  <IconPR />
+                </div>
+                <div>
+                  <div className="font-extrabold text-slate-900 tracking-tight text-base leading-tight">PRRepair</div>
+                  <div className="text-[10px] font-bold text-indigo-600 tracking-wide uppercase">AI Agent Platform</div>
+                </div>
+              </div>
+
+              {/* Navigation Menu */}
+              <nav className="p-4 space-y-1.5">
+                <button
+                  onClick={() => setActiveNav("prs")}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${activeNav === "prs" ? "bg-indigo-50 text-indigo-700 shadow-2xs" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <IconPR />
+                    <span>Pull Requests</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${activeNav === "prs" ? "bg-indigo-200/70 text-indigo-900" : "bg-slate-200 text-slate-600"}`}>{prs.length}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSettingsTab("repos");
+                    setIsSettingsOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <IconRepo />
+                    <span>Repositories</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200">{monitoredRepos.length}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSettingsTab("antigravity");
+                    setIsSettingsOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <IconCpu />
+                    <span>Agent & Engine</span>
+                  </div>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                </button>
+
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <IconSettings />
+                    <span>Integrations</span>
+                  </div>
+                </button>
+              </nav>
+            </div>
+
+            {/* Bottom Status Card */}
+            <div className="p-4 border-t border-slate-200/80 bg-slate-50/50">
+              <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">System Status</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Active
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700">
+                  <div className="font-semibold flex items-center justify-between">
+                    <span className="text-slate-500 font-normal">GitHub:</span>
+                    <span className="font-mono text-[11px] font-bold">{integrations?.github?.username ? `@${integrations.github.username}` : "Connected"}</span>
+                  </div>
+                  <div className="font-semibold flex items-center justify-between mt-1">
+                    <span className="text-slate-500 font-normal">Agent:</span>
+                    <span className="text-[11px] font-bold text-indigo-600">{integrations?.antigravity?.provider || "antigravity"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+            
+            {/* SaaS Top Header Navbar */}
+            <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
+              <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+                
+                {/* Breadcrumbs */}
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-semibold text-slate-400">Dashboard</span>
+                  <span className="text-slate-300">/</span>
+                  <span className="font-bold text-slate-900">Pull Requests Overview</span>
+                </div>
+
+                {/* Right Action Bar */}
+                <div className="flex items-center gap-2.5">
+                  {actionMsg && (
+                    <span className="text-xs text-indigo-600 font-bold px-2 animate-pulse hidden xl:inline-block">
+                      {actionMsg}
+                    </span>
+                  )}
+
+                  {/* Auto-Discover PRs */}
+                  <button
+                    onClick={handleAutoDiscover}
+                    disabled={discoveringPrs || !integrations?.github?.token_configured}
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <IconSparkles />
+                    <span>{discoveringPrs ? "Discovering..." : "Auto-Discover PRs"}</span>
+                  </button>
+
+                  {/* Settings Modal Button */}
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition border border-slate-300 shadow-2xs flex items-center gap-1.5"
+                  >
+                    <IconSettings />
+                    <span className="hidden sm:inline">Settings</span>
+                  </button>
+
+                  {/* Scan Now Button */}
+                  <button
+                    onClick={handleScanNow}
+                    disabled={loading}
+                    className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <IconRefresh spinning={loading} />
+                    <span>{loading ? "Scanning..." : "Scan Now"}</span>
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            {/* Workspace Dashboard View */}
+            <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
+              
+              {/* SaaS Bento Metrics Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs hover:shadow-md transition">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Monitored PRs</span>
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <IconPR />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold mt-2 text-slate-900 tracking-tight">
+                    {stats ? stats.total_prs : 0}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    <span>Total monitored</span>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs hover:shadow-md transition">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Needs Action</span>
+                    <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <IconAlert />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold mt-2 text-amber-600 tracking-tight">
+                    {stats ? stats.needs_attention : 0}
+                  </div>
+                  <div className="mt-1 text-[11px] text-amber-700 font-semibold">
+                    Requires action
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs hover:shadow-md transition">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">In Progress</span>
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                      <IconCpu />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold mt-2 text-indigo-600 tracking-tight">
+                    {stats ? stats.currently_repairing : 0}
+                  </div>
+                  <div className="mt-1 text-[11px] text-slate-400 font-medium">
+                    AI Agent repairing
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs hover:shadow-md transition">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Repaired</span>
+                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <IconShield />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold mt-2 text-emerald-600 tracking-tight">
+                    {stats ? stats.successfully_repaired : 0}
+                  </div>
+                  <div className="mt-1 text-[11px] text-emerald-700 font-bold">
+                    Pushed & verified
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs hover:shadow-md transition">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Halted / Failed</span>
+                    <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                      <IconAlert />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-extrabold mt-2 text-rose-600 tracking-tight">
+                    {stats ? stats.failed_repairs : 0}
+                  </div>
+                  <div className="mt-1 text-[11px] text-slate-400 font-medium">
+                    Attempts exhausted
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Content Card with Data Table & Card Views */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
+                
+                {/* Advanced Toolbar */}
+                <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-slate-50/40 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+                  
+                  {/* Search, Repo Selector & View Switcher */}
+                  <div className="flex items-center gap-2.5 flex-1 max-w-2xl">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search PR #, branch, repository, title..."
+                        className="bg-white border border-slate-300 rounded-xl pl-8 pr-7 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 w-full transition shadow-2xs font-medium"
+                      />
+                      <div className="absolute left-2.5 top-2.5 text-slate-400">
+                        <IconSearch />
+                      </div>
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm("")}
+                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {monitoredRepos.length > 0 && (
+                      <div className="relative shrink-0">
+                        <select
+                          value={selectedRepoFilter}
+                          onChange={(e) => setSelectedRepoFilter(e.target.value)}
+                          className="bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 shadow-2xs font-mono appearance-none"
+                        >
+                          <option value="ALL">All Repositories ({monitoredRepos.length})</option>
+                          {monitoredRepos.map(r => (
+                            <option key={r.github} value={r.github}>{r.github} ({r.pr_count || 0})</option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* View Switcher: Table / Grid */}
+                    <div className="hidden sm:flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+                      <button
+                        onClick={() => setViewMode("table")}
+                        className={`p-1.5 rounded-lg transition ${viewMode === "table" ? "bg-white text-indigo-700 shadow-2xs font-bold" : "text-slate-500 hover:text-slate-800"}`}
+                        title="Table View"
+                      >
+                        <IconTable />
+                      </button>
+                      <button
+                        onClick={() => setViewMode("cards")}
+                        className={`p-1.5 rounded-lg transition ${viewMode === "cards" ? "bg-white text-indigo-700 shadow-2xs font-bold" : "text-slate-500 hover:text-slate-800"}`}
+                        title="Cards View"
+                      >
+                        <IconGrid />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Status Filter Pill Tabs */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 lg:pb-0">
+                    {["ALL", "MONITORING", "NEEDS_REPAIR", "REQUIRES_HUMAN_REVIEW", "FIXED", "FAILED"].map(st => {
+                      const count = statusCounts[st] || 0;
+                      const isActive = filterStatus === st;
+                      const label = statusTabLabels[st] || st;
+                      return (
+                        <button
+                          key={st}
+                          onClick={() => setFilterStatus(st)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shrink-0 border ${
+                            isActive
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                              : "bg-white text-slate-600 hover:text-slate-900 border-slate-200 hover:bg-slate-100/80"
+                          }`}
+                        >
+                          <span>{label}</span>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? "bg-indigo-700 text-white font-bold" : "bg-slate-100 text-slate-600"}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Table View */}
+                {viewMode === "table" ? (
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left text-sm text-slate-700">
+                      <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-3.5 w-24">PR #</th>
+                          <th className="px-4 py-3.5 min-w-[220px]">Pull Request</th>
+                          <th className="px-4 py-3.5 min-w-[160px]">Repository</th>
+                          <th className="px-4 py-3.5 min-w-[130px]">Branch</th>
+                          <th className="px-4 py-3.5 min-w-[120px]">Status</th>
+                          <th className="px-4 py-3.5 min-w-[90px]">Attempts</th>
+                          <th className="px-4 py-3.5 w-24 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {displayedPrs.length === 0 ? (
+                          <tr>
+                            <td colSpan="7" className="px-6 py-16 text-center">
+                              <div className="max-w-md mx-auto space-y-3">
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center text-xl mx-auto shadow-xs">
+                                  <IconSearch />
+                                </div>
+                                <div className="text-slate-900 font-bold text-base">
+                                  {searchTerm ? "No pull requests match your search" : "No Monitored Pull Requests"}
+                                </div>
+                                <p className="text-xs text-slate-500 leading-relaxed">
+                                  {searchTerm ? "Try searching for a different branch, repo, or PR number." : "Click Auto-Discover PRs to scan GitHub and automatically monitor all your open pull requests."}
+                                </p>
+                                {searchTerm && (
+                                  <button
+                                    onClick={() => setSearchTerm("")}
+                                    className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"
+                                  >
+                                    Clear Search Filter
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          displayedPrs.map(pr => {
+                            const prUrl = pr.url || `https://github.com/${pr.repository}/pull/${pr.pr_number}`;
+                            const repoUrl = `https://github.com/${pr.repository}`;
+                            return (
+                              <tr key={pr.id} className="hover:bg-slate-50/80 transition-colors group">
+                                {/* PR # Badge */}
+                                <td className="px-4 py-3.5 font-semibold text-slate-900 whitespace-nowrap">
+                                  <a
+                                    href={prUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 inline-flex items-center gap-1 font-mono text-xs font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/70 transition shadow-2xs group"
+                                    title="Open PR on GitHub"
+                                  >
+                                    <span>#{pr.pr_number}</span>
+                                    <IconExternal />
+                                  </a>
+                                </td>
+
+                                {/* Title + Author */}
+                                <td className="px-4 py-3.5 max-w-sm">
+                                  <a
+                                    href={prUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-slate-900 hover:text-indigo-600 font-bold block truncate text-xs transition leading-snug"
+                                    title={`#${pr.pr_number}: ${pr.title}`}
+                                  >
+                                    {pr.title}
+                                  </a>
+                                  <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-400">
+                                    <span>by <strong className="text-slate-600 font-semibold">@{pr.author}</strong></span>
+                                  </div>
+                                </td>
+
+                                {/* Repository */}
+                                <td className="px-4 py-3.5 whitespace-nowrap">
+                                  <a
+                                    href={repoUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="hover:text-indigo-600 font-mono text-xs text-slate-700 bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded border border-slate-200 inline-block transition"
+                                    title="Open repository on GitHub"
+                                  >
+                                    {pr.repository}
+                                  </a>
+                                </td>
+
+                                {/* Branch */}
+                                <td className="px-4 py-3.5 whitespace-nowrap">
+                                  <div className="flex items-center gap-1 max-w-[160px]" title={pr.branch}>
+                                    <IconGitBranch />
+                                    <span className="font-mono text-xs text-slate-600 truncate block bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60">
+                                      {pr.branch}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Status Badge */}
+                                <td className="px-4 py-3.5 whitespace-nowrap">
+                                  {getStatusBadge(pr.status)}
+                                </td>
+
+                                {/* Attempts Visualizer */}
+                                <td className="px-4 py-3.5 whitespace-nowrap">
+                                  {renderAttempts(pr.repair_attempts, pr.max_attempts)}
+                                </td>
+
+                                {/* Action Button */}
+                                <td className="px-4 py-3.5 text-right whitespace-nowrap space-x-2">
+                                  <button
+                                    onClick={() => requestPrRepair(pr)}
+                                    title="Repair PR"
+                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 rounded-lg text-xs font-bold transition border border-indigo-200/80 shadow-2xs inline-flex items-center gap-1"
+                                  >
+                                    <IconCpu />
+                                    <span>Repair</span>
+                                  </button>
+                                  <button
+                                    onClick={() => openPrDetails(pr)}
+                                    className="px-3 py-1 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-bold transition border border-slate-200 hover:border-slate-300 shadow-2xs"
+                                  >
+                                    Details
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  /* Cards / Grid View */
+                  <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {displayedPrs.length === 0 ? (
+                      <div className="col-span-full py-12 text-center text-xs text-slate-500">
+                        No pull requests found.
+                      </div>
+                    ) : (
+                      displayedPrs.map(pr => {
+                        const prUrl = pr.url || `https://github.com/${pr.repository}/pull/${pr.pr_number}`;
+                        return (
+                          <div key={pr.id} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs hover:shadow-md transition space-y-3 flex flex-col justify-between">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <a
+                                  href={prUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-indigo-600 hover:text-indigo-800 font-mono text-xs font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200/70 inline-flex items-center gap-1"
+                                >
+                                  <span>#{pr.pr_number}</span>
+                                  <IconExternal />
+                                </a>
+                                {getStatusBadge(pr.status)}
+                              </div>
+
+                              <a
+                                href={prUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-slate-900 hover:text-indigo-600 font-bold block text-sm leading-snug line-clamp-2"
+                              >
+                                {pr.title}
+                              </a>
+
+                              <div className="text-xs text-slate-500 flex items-center justify-between pt-1">
+                                <span className="font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded text-[11px] truncate max-w-[150px]">{pr.repository}</span>
+                                <span>by @{pr.author}</span>
+                              </div>
+
+                              <div className="flex items-center gap-1 text-xs text-slate-500 font-mono">
+                                <IconGitBranch />
+                                <span className="truncate">{pr.branch}</span>
+                              </div>
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                              <div className="text-xs">
+                                <span className="text-slate-400 mr-1.5">Attempts:</span>
+                                {renderAttempts(pr.repair_attempts, pr.max_attempts)}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => requestPrRepair(pr)}
+                                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition border border-indigo-200/80 inline-flex items-center gap-1"
+                                >
+                                  <IconCpu />
+                                  <span>Repair</span>
+                                </button>
+                                <button
+                                  onClick={() => openPrDetails(pr)}
+                                  className="px-3 py-1 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold transition border border-slate-200"
+                                >
+                                  Details
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </main>
+          </div>
+
+          {/* Settings & Integrations Modal */}
+          {isSettingsOpen && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full max-h-[92vh] shadow-2xl flex flex-col overflow-hidden">
+                {/* Fixed Modal Header */}
+                <div className="p-6 pb-4 border-b border-slate-200 shrink-0 bg-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <IconSettings />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        Platform Settings & Integrations
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setIsSettingsOpen(false)}
+                      className="text-slate-400 hover:text-slate-700 text-sm p-1.5 rounded-lg hover:bg-slate-100 transition"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Modal Navigation Tabs */}
+                  <div className="flex border-b border-slate-200 mt-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSettingsTab("github")}
+                      className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${settingsTab === "github" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+                    >
+                      <span>🔑 GitHub Auth</span>
+                      {integrations?.github?.token_configured && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSettingsTab("repos")}
+                      className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${settingsTab === "repos" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+                    >
+                      <span>📁 Repositories</span>
+                      <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-mono font-bold">{monitoredRepos.length}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSettingsTab("antigravity")}
+                      className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${settingsTab === "antigravity" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+                    >
+                      <span>🤖 Antigravity Agent</span>
+                      {integrations?.antigravity?.binary_exists && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Modal Content */}
+                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+                  {/* GitHub Connection Tab */}
+                  {settingsTab === "github" && (
+                    <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-sm">GitHub Connection</span>
+                          {integrations?.github?.token_configured && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              {integrations.github.username ? `@${integrations.github.username}` : "Authenticated"}
+                            </span>
+                          )}
+                        </div>
+                        {integrations?.github?.masked_token && (
+                          <span className="text-xs text-slate-500 font-mono">{integrations.github.masked_token}</span>
+                        )}
+                      </div>
+
+                      {/* Active Connected Account Panel */}
+                      {integrations?.github?.token_configured && !deviceFlow && (
+                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl mb-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-emerald-200 border border-emerald-300 flex items-center justify-center font-bold text-emerald-800 text-xs">
+                                {integrations.github.username ? integrations.github.username.slice(0, 2).toUpperCase() : "GH"}
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                  <span>Connected as @{integrations.github.username || "user"}</span>
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300">Active</span>
+                                </div>
+                                <div className="text-xs text-slate-600">GitHub API access configured & authenticated</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={testGitHub}
+                                disabled={testingGh}
+                                className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition shadow-2xs"
+                              >
+                                {testingGh ? "Checking..." : "Verify"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={disconnectGitHub}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 transition shadow-2xs"
+                              >
+                                Disconnect
+                              </button>
+                            </div>
+                          </div>
+
+                          {ghTestResult && (
+                            <div className={`p-2.5 rounded-lg text-xs border ${ghTestResult.success ? "bg-white border-emerald-300 text-emerald-800" : "bg-white border-rose-300 text-rose-800"}`}>
+                              {ghTestResult.success ? (
+                                <div className="flex items-center gap-2">
+                                  {ghTestResult.avatar_url && (
+                                    <img src={ghTestResult.avatar_url} className="w-5 h-5 rounded-full border border-emerald-200" alt="avatar" />
+                                  )}
+                                  <span>✔ Verified active connection as <strong>@{ghTestResult.login}</strong> {ghTestResult.name ? `(${ghTestResult.name})` : ""}</span>
+                                </div>
+                              ) : (
+                                <div>✘ Token check failed: {ghTestResult.error}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Auth Method Selector */}
+                      <div className="flex rounded-xl bg-slate-200/80 p-1 border border-slate-200 mb-4 text-xs font-bold">
+                        <button
+                          type="button"
+                          onClick={() => setGhAuthMode("device")}
+                          className={`flex-1 py-1.5 rounded-lg transition ${ghAuthMode === "device" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                        >
+                          🔑 Device Flow / OAuth (Browser)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGhAuthMode("pat")}
+                          className={`flex-1 py-1.5 rounded-lg transition ${ghAuthMode === "pat" ? "bg-white text-indigo-700 shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                        >
+                          📝 Personal Access Token
+                        </button>
+                      </div>
+
+                      {ghAuthMode === "device" ? (
+                        <div className="space-y-4">
+                          <p className="text-xs text-slate-600 leading-relaxed">
+                            Authenticate securely via GitHub's standard RFC 8628 Device Authorization flow. No need to generate or paste secrets manually.
+                          </p>
+
+                          {/* Error Alert */}
+                          {deviceInitError && (
+                            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-2">
+                              <div className="flex items-center gap-2 font-semibold">
+                                <span>⚠️</span>
+                                <span>{deviceInitError}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={startDeviceFlow}
+                                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold transition shadow-xs"
+                                >
+                                  Try Again
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeviceInitError(null)}
+                                  className="px-2 py-1 text-slate-500 hover:text-slate-800 text-xs"
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Device Success Banner */}
+                          {deviceSuccessUser && (
+                            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {deviceSuccessUser.avatar_url ? (
+                                  <img src={deviceSuccessUser.avatar_url} className="w-9 h-9 rounded-full border border-emerald-400" alt="avatar" />
+                                ) : (
+                                  <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white text-sm">✔</div>
+                                )}
+                                <div>
+                                  <div className="font-bold text-sm text-emerald-900">✔ Successfully connected with GitHub!</div>
+                                  <div className="text-slate-700">Signed in as <strong>@{deviceSuccessUser.login}</strong></div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDeviceSuccessUser(null);
+                                  setIsSettingsOpen(false);
+                                }}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition"
+                              >
+                                Done
+                              </button>
+                            </div>
+                          )}
+
+                          {!deviceFlow && !deviceSuccessUser && (
+                            <button
+                              type="button"
+                              onClick={startDeviceFlow}
+                              disabled={devicePolling}
+                              className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 transition disabled:opacity-50"
+                            >
+                              <IconGitHubLogo />
+                              <span>{devicePolling ? "Requesting code from GitHub..." : (integrations?.github?.token_configured ? "Reconnect with GitHub (Device Flow)" : "Connect with GitHub (Device Flow)")}</span>
+                            </button>
+                          )}
+
+                          {deviceFlow && (
+                            <div className="bg-white border border-indigo-200 rounded-xl p-4 space-y-3 shadow-sm">
+                              <div className="text-xs text-slate-700 font-medium">
+                                <strong>Step 1:</strong> Copy your one-time device code below:
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 font-mono text-xl font-bold text-center tracking-widest text-indigo-700 select-all shadow-inner">
+                                  {deviceFlow.user_code}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(deviceFlow.user_code);
+                                    setCopiedCode(true);
+                                    setTimeout(() => setCopiedCode(false), 2000);
+                                  }}
+                                  className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-slate-300 transition"
+                                >
+                                  {copiedCode ? "✔ Copied" : "Copy Code"}
+                                </button>
+                              </div>
+
+                              <div className="text-xs text-slate-700 font-medium">
+                                <strong>Step 2:</strong> Open GitHub verification URL and enter the code:
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                <a
+                                  href={deviceFlow.verification_uri}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition"
+                                >
+                                  <span>Open GitHub Device Login ↗</span>
+                                </a>
+                                <span className="text-[11px] text-slate-500 font-mono">({deviceFlow.verification_uri})</span>
+                              </div>
+
+                              <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs gap-2">
+                                <div className="flex items-center gap-2 text-indigo-700 truncate font-semibold">
+                                  {devicePolling && <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping shrink-0"></span>}
+                                  <span className="truncate">{devicePollMsg}</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => pollOnce(deviceFlow)}
+                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200 text-[11px] font-bold transition"
+                                  >
+                                    Check Now
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={cancelDeviceFlow}
+                                    className="text-slate-400 hover:text-slate-600 text-xs px-1"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">GitHub Personal Access Token (PAT)</label>
+                            <input
+                              type="password"
+                              value={ghToken}
+                              onChange={(e) => setGhToken(e.target.value)}
+                              placeholder={integrations?.github?.token_configured ? "Enter new token to replace existing" : "ghp_..."}
+                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">GitHub Username</label>
+                            <input
+                              type="text"
+                              value={ghUser}
+                              onChange={(e) => setGhUser(e.target.value)}
+                              placeholder="e.g. octocat"
+                              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            />
+                          </div>
+
+                          {/* Test Result */}
+                          {ghTestResult && (
+                            <div className={`p-3 rounded-xl text-xs border ${ghTestResult.success ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                              {ghTestResult.success ? (
+                                <div className="flex items-center gap-2">
+                                  {ghTestResult.avatar_url && (
+                                    <img src={ghTestResult.avatar_url} className="w-5 h-5 rounded-full border border-emerald-200" alt="avatar" />
+                                  )}
+                                  <span>✔ Connected as <strong>@{ghTestResult.login}</strong> {ghTestResult.name ? `(${ghTestResult.name})` : ""}</span>
+                                </div>
+                              ) : (
+                                <div>✘ Connection failed: {ghTestResult.error}</div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex justify-end pt-1">
+                            <button
+                              type="button"
+                              onClick={testGitHub}
+                              disabled={testingGh}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition disabled:opacity-50"
+                            >
+                              {testingGh ? "Testing..." : "Test GitHub Connection"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Monitored Repositories Tab */}
+                  {settingsTab === "repos" && (
+                    <div className="space-y-4">
+                      {/* Auto-Discover Action Card */}
+                      <div className="p-4 bg-gradient-to-r from-indigo-50 via-blue-50 to-slate-50 border border-indigo-200/80 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                              <span>🔍</span>
+                              <span>Auto-Discover My Pull Requests</span>
+                            </div>
+                            <div className="text-xs text-slate-600 mt-0.5">
+                              Scan GitHub for all open PRs created by @{integrations?.github?.username || "you"} across all repositories and start monitoring them.
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleAutoDiscover}
+                            disabled={discoveringPrs || !integrations?.github?.token_configured}
+                            className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50 shrink-0"
+                          >
+                            {discoveringPrs ? "Searching..." : "Auto-Discover All PRs"}
+                          </button>
+                        </div>
+
+                        {autoDiscoverResult && (
+                          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold">
+                            ✔ {autoDiscoverResult.message}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Add Custom Repository */}
+                      <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-3">
+                        <div className="text-xs font-bold text-slate-800">Add Repository to Monitor</div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newRepoInput}
+                            onChange={(e) => setNewRepoInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleAddRepository(); }}
+                            placeholder="owner/repo (e.g. wprashed/my-repo or WordPress/gutenberg)"
+                            className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddRepository()}
+                            disabled={addingRepo}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50"
+                          >
+                            {addingRepo ? "Adding..." : "+ Add & Scan"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Monitored Repositories List */}
+                      <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900">Monitored Repositories ({monitoredRepos.length})</span>
+                          <button
+                            type="button"
+                            onClick={fetchRepositories}
+                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                          >
+                            Refresh
+                          </button>
+                        </div>
+
+                        {monitoredRepos.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-slate-500">
+                            No repositories configured. Click "Auto-Discover All PRs" above or enter a repository name.
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
+                            {monitoredRepos.map((repo) => (
+                              <div key={repo.github} className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl text-xs shadow-2xs">
+                                <div className="flex items-center gap-2.5">
+                                  <span className={`w-2 h-2 rounded-full ${repo.enabled ? "bg-emerald-500" : "bg-slate-300"}`}></span>
+                                  <div>
+                                    <a
+                                      href={`https://github.com/${repo.github}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="font-mono text-slate-900 hover:text-indigo-600 font-bold"
+                                    >
+                                      {repo.github} ↗
+                                    </a>
+                                    <div className="text-[11px] text-slate-500 font-medium">
+                                      {repo.only_my_prs ? "Only author's PRs" : "All PRs"} • {repo.pr_count || 0} open PR(s) monitored
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleRepo(repo.github)}
+                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${repo.enabled ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}
+                                  >
+                                    {repo.enabled ? "Enabled" : "Disabled"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveRepo(repo.github)}
+                                    className="text-slate-400 hover:text-rose-600 p-1 text-sm transition"
+                                    title="Remove from monitoring"
+                                  >
+                                    🗑
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* User's GitHub Repositories (Quick-add) */}
+                      {userGhRepos.length > 0 && (
+                        <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-800">Quick-Add from Your GitHub Repositories</span>
+                            <span className="text-[11px] text-slate-500 font-medium">{userGhRepos.length} repos found</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                            {userGhRepos.slice(0, 20).map((r) => (
+                              <div key={r.full_name} className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-xl text-xs shadow-2xs">
+                                <div className="truncate pr-2">
+                                  <div className="font-mono text-slate-900 truncate text-[11px] font-bold">{r.full_name}</div>
+                                  <div className="text-[10px] text-slate-500">{r.private ? "Private" : "Public"} {r.open_issues_count > 0 ? `• ${r.open_issues_count} open issue(s)/PR(s)` : ""}</div>
+                                </div>
+                                {r.is_monitored ? (
+                                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-200 shrink-0">Monitored</span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddRepository(r.full_name)}
+                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[10px] border border-indigo-200 shrink-0 transition"
+                                  >
+                                    + Monitor
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Antigravity Connection Box */}
+                  {settingsTab === "antigravity" && (
+                    <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-sm">Antigravity AI Agent</span>
+                          {integrations?.antigravity?.binary_exists && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              Binary Ready
+                            </span>
+                          )}
+                          {agAuthStatus?.session_active && (
+                            <span className="text-[10px] bg-blue-100 text-blue-800 border border-blue-300 px-2 py-0.5 rounded font-bold">
+                              Session Active
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-500 font-mono">Provider: {agProvider}</span>
+                      </div>
+
+                      {agAuthStatus && (
+                        <div className="mb-3 p-2.5 rounded-xl bg-white border border-slate-200 text-xs flex items-center justify-between shadow-2xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500">Auth Status:</span>
+                            <span className={agAuthStatus.authenticated ? "text-emerald-700 font-bold" : "text-amber-700 font-bold"}>
+                              {agAuthStatus.authenticated ? "Authenticated (CLI / Session)" : "Unauthenticated"}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            {agAuthStatus.binary_path || "Not found"}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Agent Provider</label>
+                          <select
+                            value={agProvider}
+                            onChange={(e) => setAgProvider(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                          >
+                            <option value="antigravity">Google Antigravity (agentapi)</option>
+                            <option value="mock">Mock Coding Agent (Simulation / Dry-run)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Antigravity Binary Path</label>
+                          <input
+                            type="text"
+                            value={agBin}
+                            onChange={(e) => setAgBin(e.target.value)}
+                            placeholder="/Users/rashed/.gemini/antigravity/bin/agentapi"
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Model Selection</label>
+                          <select
+                            value={agModel}
+                            onChange={(e) => setAgModel(e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium"
+                          >
+                            <option value="flash">Gemini Flash (Default - Balanced)</option>
+                            <option value="flash_lite">Gemini Flash Lite (Ultra-fast)</option>
+                            <option value="pro">Gemini Pro (Complex reasoning & large refactors)</option>
+                          </select>
+                        </div>
+
+                        {/* Antigravity Test Result */}
+                        {agTestResult && (
+                          <div className={`p-3 rounded-xl text-xs border ${agTestResult.success ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                            {agTestResult.success ? (
+                              <div>
+                                <div className="font-bold">✔ Antigravity Verified and Ready!</div>
+                                <div className="text-[11px] text-slate-600 font-mono mt-1">Binary: {agTestResult.binary_path}</div>
+                                <div className="text-[11px] text-slate-600 mt-0.5">Model: {agTestResult.model}</div>
+                              </div>
+                            ) : (
+                              <div>✘ Antigravity test failed: {agTestResult.error}</div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={testAntigravity}
+                            disabled={testingAg}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition disabled:opacity-50"
+                          >
+                            {testingAg ? "Testing..." : "Test Antigravity Connection"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Fixed Footer Actions */}
+                <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                  <button
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition shadow-2xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveIntegrations}
+                    disabled={savingSettings}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20 disabled:opacity-50"
+                  >
+                    {savingSettings ? "Saving..." : "Save Integrations"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PR Details Modal */}
+          {selectedPr && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white border border-slate-200 rounded-2xl max-w-4xl w-full max-h-[90vh] shadow-2xl flex flex-col overflow-hidden">
+                {/* Fixed Modal Header */}
+                <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-200 shrink-0 bg-white">
+                  <div>
+                    <a
+                      href={`https://github.com/${selectedPr.repository}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-mono font-bold inline-flex items-center gap-1"
+                    >
+                      <span>{selectedPr.repository}</span>
+                      <IconExternal />
+                    </a>
+                    <h3 className="text-xl font-extrabold text-slate-900 mt-1 tracking-tight">
+                      <a
+                        href={selectedPr.url || `https://github.com/${selectedPr.repository}/pull/${selectedPr.pr_number}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-indigo-600 hover:underline inline-flex items-center gap-2"
+                      >
+                        <span>#{selectedPr.pr_number}: {selectedPr.title}</span>
+                        <IconExternal />
+                      </a>
+                    </h3>
+                    <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+                      {getStatusBadge(selectedPr.status)}
+                      <span className="text-xs text-slate-600 font-medium">Branch: <code className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded-md border border-slate-200">{selectedPr.branch}</code></span>
+                      <span className="text-xs text-slate-600 font-medium">Author: <strong className="text-slate-800">@{selectedPr.author}</strong></span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => requestPrRepair(selectedPr)}
+                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5 shadow-sm shadow-indigo-500/20"
+                    >
+                      <IconCpu />
+                      <span>Repair PR</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedPr(null)}
+                      className="text-slate-400 hover:text-slate-700 text-sm p-1.5 rounded-lg hover:bg-slate-100 transition"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Modal Content */}
+                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+                  {/* Actions bar */}
+                  <div className="flex items-center gap-3 pb-2 border-b border-slate-100 flex-wrap">
+                    <a
+                      href={selectedPr.url || `https://github.com/${selectedPr.repository}/pull/${selectedPr.pr_number}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-2 shadow-xs"
+                    >
+                      <IconGitHubLogo />
+                      <span>View on GitHub ↗</span>
+                    </a>
+                    {selectedPr.status === "REQUIRES_HUMAN_REVIEW" && (
+                      <button
+                        onClick={() => {
+                          setConfirmModal({
+                            title: "Approve & Push Fix",
+                            target: `#${selectedPr.pr_number} • ${selectedPr.title}`,
+                            description: "Approve the verified fix and push the commit directly to the branch on GitHub?",
+                            confirmLabel: "Approve & Push",
+                            type: "primary",
+                            onConfirm: async () => {
+                              setConfirmModal(null);
+                              handleApprove(selectedPr.id);
+                            }
+                          });
+                        }}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-600/20 inline-flex items-center gap-1.5"
+                      >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Approve & Push Fix</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => requestPrRepair(selectedPr)}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-2 shadow-md shadow-indigo-500/25 active:scale-95"
+                    >
+                      <IconCpu />
+                      <span>Repair PR</span>
+                    </button>
+                  </div>
+
+                  {/* Latest Diff */}
+                  {selectedPr.latest_diff && (
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 tracking-wider uppercase mb-2">Latest Verified Diff</h4>
+                      <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs overflow-x-auto text-emerald-400 leading-relaxed max-h-72 shadow-inner font-mono">
+                        {selectedPr.latest_diff}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Repair History */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 tracking-wider uppercase mb-3">Repair History</h4>
+                    {repairs.length === 0 ? (
+                      <div className="text-xs text-slate-500 py-3 bg-slate-50 rounded-xl text-center border border-slate-200/60">
+                        No repair attempts recorded yet.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {repairs.map(rep => (
+                          <div key={rep.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900">Attempt #{rep.attempt_number}</span>
+                              <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${rep.status === "SUCCESS" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{rep.status}</span>
+                            </div>
+                            <div className="text-slate-600 mt-1 font-medium">Trigger: {rep.trigger_reason}</div>
+                            {rep.commit_sha && (
+                              <div className="text-slate-500 mt-1 font-mono">Commit: {rep.commit_sha}</div>
+                            )}
+                            {rep.error_message && (
+                              <div className="text-rose-700 mt-2 bg-rose-50 p-2.5 rounded-lg border border-rose-200 font-medium">
+                                {rep.error_message}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modern SaaS Confirmation Modal */}
+          {confirmModal && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full shadow-2xl p-6 sm:p-7 scale-100 transition-all">
+                {/* Modal Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      confirmModal.type === "danger" 
+                        ? "bg-rose-50 text-rose-600 border border-rose-200" 
+                        : "bg-indigo-50 text-indigo-600 border border-indigo-200"
+                    }`}>
+                      {confirmModal.type === "danger" ? (
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                      ) : (
+                        <IconCpu />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                        {confirmModal.title}
+                      </h3>
+                      {confirmModal.repo && (
+                        <span className="text-[11px] font-mono text-slate-500 font-medium">{confirmModal.repo}</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setConfirmModal(null)}
+                    className="text-slate-400 hover:text-slate-700 text-sm p-1 rounded-lg hover:bg-slate-100 transition shrink-0"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Target context chip/box */}
+                {confirmModal.target && (
+                  <div className="mt-4 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-semibold text-slate-800 break-words leading-relaxed shadow-2xs">
+                    {confirmModal.target}
+                  </div>
+                )}
+
+                {/* Description Text */}
+                <p className="mt-3 text-xs text-slate-600 leading-relaxed break-words">
+                  {confirmModal.description}
+                </p>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-2.5 mt-6 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmModal(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmModal.onConfirm}
+                    className={`px-5 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5 active:scale-95 ${
+                      confirmModal.type === "danger"
+                        ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20"
+                        : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20"
+                    }`}
+                  >
+                    <span>{confirmModal.confirmLabel || "Confirm"}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modern SaaS Toast Notifications */}
+          <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2.5 pointer-events-none max-w-sm w-full">
+            {toasts.map(toast => (
+              <div
+                key={toast.id}
+                className={`pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-md transition-all duration-300 ${
+                  toast.type === "success"
+                    ? "bg-slate-900/95 text-white border-slate-700/80 shadow-slate-900/30"
+                    : toast.type === "error"
+                    ? "bg-rose-950/95 text-white border-rose-800/80 shadow-rose-950/30"
+                    : "bg-slate-900/95 text-white border-slate-700/80 shadow-slate-900/30"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  {toast.type === "success" && (
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                  )}
+                  {toast.type === "error" && (
+                    <div className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </div>
+                  )}
+                  {toast.type === "info" && (
+                    <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                    </div>
+                  )}
+                  <span className="text-xs font-semibold leading-snug">{toast.message}</span>
+                </div>
+                <button
+                  onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition text-xs shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById("root"));
+  </script>
+</body>
+</html>

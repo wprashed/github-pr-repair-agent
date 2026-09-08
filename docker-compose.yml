@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  pr-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: github-pr-repair-agent
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_USERNAME=${GITHUB_USERNAME}
+      - SCHEDULER_INTERVAL_HOURS=${SCHEDULER_INTERVAL_HOURS:-3}
+      - AUTOMATION_MODE=${AUTOMATION_MODE:-auto}
+      - AGENT_PROVIDER=${AGENT_PROVIDER:-antigravity}
+      - ANTIGRAVITY_MODEL=${ANTIGRAVITY_MODEL:-flash}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - pr_agent_data:/app/data
+      - pr_agent_logs:/app/logs
+      - pr_agent_workspaces:/app/workspaces
+      - ./config/repositories.yaml:/app/config/repositories.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  pr_agent_data:
+  pr_agent_logs:
+  pr_agent_workspaces:

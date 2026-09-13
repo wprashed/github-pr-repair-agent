@@ -1302,13 +1302,13 @@
                         <table className="w-full text-left text-sm text-slate-700">
                           <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                             <tr>
-                              <th className="px-4 py-3.5 w-24">PR #</th>
-                              <th className="px-4 py-3.5 min-w-[220px]">Pull Request</th>
-                              <th className="px-4 py-3.5 min-w-[160px]">Repository</th>
-                              <th className="px-4 py-3.5 min-w-[140px]">Branch</th>
-                              <th className="px-4 py-3.5 min-w-[120px]">Status</th>
-                              <th className="px-4 py-3.5 min-w-[90px]">Attempts</th>
-                              <th className="px-4 py-3.5 w-32 text-right">Actions</th>
+                              <th className="px-4 py-3.5 w-24 whitespace-nowrap">PR #</th>
+                              <th className="px-4 py-3.5 min-w-[200px]">Pull Request</th>
+                              <th className="px-4 py-3.5 min-w-[150px] whitespace-nowrap">Repository</th>
+                              <th className="px-4 py-3.5 min-w-[140px] whitespace-nowrap">Branch</th>
+                              <th className="px-4 py-3.5 min-w-[120px] whitespace-nowrap">Status</th>
+                              <th className="px-4 py-3.5 min-w-[90px] whitespace-nowrap">Attempts</th>
+                              <th className="px-4 py-3.5 min-w-[150px] w-40 text-right whitespace-nowrap">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
@@ -1418,21 +1418,23 @@
                                     </td>
 
                                     {/* Action Buttons */}
-                                    <td className="px-4 py-3.5 text-right whitespace-nowrap space-x-1.5">
-                                      <button
-                                        onClick={() => requestPrRepair(pr)}
-                                        title="Trigger PR Repair"
-                                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 rounded-lg text-xs font-bold transition border border-indigo-200/80 shadow-2xs inline-flex items-center gap-1 active:scale-95"
-                                      >
-                                        <IconCpu className="w-3.5 h-3.5 text-indigo-600" />
-                                        <span>Repair</span>
-                                      </button>
-                                      <button
-                                        onClick={() => openPrDetails(pr)}
-                                        className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-bold transition border border-slate-200 hover:border-slate-300 shadow-2xs active:scale-95"
-                                      >
-                                        Details
-                                      </button>
+                                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <button
+                                          onClick={() => requestPrRepair(pr)}
+                                          title="Trigger PR Repair"
+                                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 rounded-lg text-xs font-bold transition border border-indigo-200/80 shadow-2xs inline-flex items-center gap-1 active:scale-95 shrink-0"
+                                        >
+                                          <IconCpu className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                          <span>Repair</span>
+                                        </button>
+                                        <button
+                                          onClick={() => openPrDetails(pr)}
+                                          className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-bold transition border border-slate-200 hover:border-slate-300 shadow-2xs active:scale-95 shrink-0"
+                                        >
+                                          Details
+                                        </button>
+                                      </div>
                                     </td>
                                   </tr>
                                 );

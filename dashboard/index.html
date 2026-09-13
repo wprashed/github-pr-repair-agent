@@ -179,6 +179,30 @@
       </svg>
     );
 
+    const IconChevronLeft = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+    );
+
+    const IconChevronRight = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m9 18 6-6-6-6"/>
+      </svg>
+    );
+
+    const IconChevronsLeft = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>
+      </svg>
+    );
+
+    const IconChevronsRight = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>
+      </svg>
+    );
+
     // ==========================================
     // --- Main Application Component ---
     // ==========================================
@@ -196,6 +220,8 @@
       const [activeNav, setActiveNav] = useState("prs"); // "prs" | "repos" | "agent" | "integrations"
       const [copiedKey, setCopiedKey] = useState(null);
       const [modalTab, setModalTab] = useState("overview"); // "overview" | "diff" | "history"
+      const [currentPage, setCurrentPage] = useState(1);
+      const pageSize = 10; // Max 10 rows per page
 
       // Settings & Integrations State
       const [integrations, setIntegrations] = useState(null);
@@ -822,8 +848,13 @@
         );
       };
 
+      // Reset to page 1 whenever filters or search term change
+      useEffect(() => {
+        setCurrentPage(1);
+      }, [searchTerm, filterStatus, selectedRepoFilter]);
+
       // Filtered PR list based on search and status
-      const displayedPrs = prs.filter(pr => {
+      const filteredPrs = prs.filter(pr => {
         if (!searchTerm) return true;
         const q = searchTerm.toLowerCase();
         return (
@@ -834,6 +865,14 @@
           (pr.author && pr.author.toLowerCase().includes(q))
         );
       });
+
+      // Pagination math (Max 10 rows per page)
+      const totalItems = filteredPrs.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+      const validPage = Math.min(Math.max(1, currentPage), totalPages);
+      const startIndex = (validPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, totalItems);
+      const paginatedPrs = filteredPrs.slice(startIndex, endIndex);
 
       const statusCounts = {
         ALL: prs.length,
@@ -1273,7 +1312,7 @@
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {displayedPrs.length === 0 ? (
+                            {paginatedPrs.length === 0 ? (
                               <tr>
                                 <td colSpan="7" className="px-6 py-16 text-center">
                                   <div className="max-w-md mx-auto space-y-3">
@@ -1298,7 +1337,7 @@
                                 </td>
                               </tr>
                             ) : (
-                              displayedPrs.map(pr => {
+                              paginatedPrs.map(pr => {
                                 const prUrl = pr.url || `https://github.com/${pr.repository}/pull/${pr.pr_number}`;
                                 const repoUrl = `https://github.com/${pr.repository}`;
                                 return (
@@ -1405,12 +1444,12 @@
                     ) : (
                       /* Bento Cards Grid View */
                       <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {displayedPrs.length === 0 ? (
+                        {paginatedPrs.length === 0 ? (
                           <div className="col-span-full py-12 text-center text-xs text-slate-500">
                             No pull requests found.
                           </div>
                         ) : (
-                          displayedPrs.map(pr => {
+                          paginatedPrs.map(pr => {
                             const prUrl = pr.url || `https://github.com/${pr.repository}/pull/${pr.pr_number}`;
                             return (
                               <div key={pr.id} className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs hover:shadow-md transition space-y-3 flex flex-col justify-between">
@@ -1480,6 +1519,90 @@
                               </div>
                             );
                           })
+                        )}
+                      </div>
+                    )}
+
+                    {/* Pagination Footer */}
+                    {totalItems > 0 && (
+                      <div className="p-3.5 sm:px-6 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                        <div className="text-slate-500 font-medium">
+                          Showing <span className="font-bold text-slate-800">{startIndex + 1}</span> to{" "}
+                          <span className="font-bold text-slate-800">{endIndex}</span> of{" "}
+                          <span className="font-bold text-slate-800">{totalItems}</span> pull requests
+                          {totalPages > 1 && (
+                            <span className="ml-1 text-slate-400">
+                              (Page {validPage} of {totalPages})
+                            </span>
+                          )}
+                        </div>
+
+                        {totalPages > 1 && (
+                          <div className="flex items-center gap-1">
+                            {/* First Page */}
+                            <button
+                              onClick={() => setCurrentPage(1)}
+                              disabled={validPage === 1}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white transition"
+                              title="First page"
+                            >
+                              <IconChevronsLeft className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Previous Page */}
+                            <button
+                              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                              disabled={validPage === 1}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white transition"
+                              title="Previous page"
+                            >
+                              <IconChevronLeft className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Page Numbers */}
+                            <div className="flex items-center gap-1 px-1">
+                              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter(p => p === 1 || p === totalPages || Math.abs(p - validPage) <= 1)
+                                .map((p, idx, arr) => {
+                                  const showEllipsis = idx > 0 && p - arr[idx - 1] > 1;
+                                  return (
+                                    <React.Fragment key={p}>
+                                      {showEllipsis && <span className="px-1 text-slate-400">...</span>}
+                                      <button
+                                        onClick={() => setCurrentPage(p)}
+                                        className={`w-7 h-7 rounded-lg text-xs font-bold transition flex items-center justify-center ${
+                                          validPage === p
+                                            ? "bg-indigo-600 text-white shadow-xs"
+                                            : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                      >
+                                        {p}
+                                      </button>
+                                    </React.Fragment>
+                                  );
+                                })}
+                            </div>
+
+                            {/* Next Page */}
+                            <button
+                              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                              disabled={validPage === totalPages}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white transition"
+                              title="Next page"
+                            >
+                              <IconChevronRight className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Last Page */}
+                            <button
+                              onClick={() => setCurrentPage(totalPages)}
+                              disabled={validPage === totalPages}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-white transition"
+                              title="Last page"
+                            >
+                              <IconChevronsRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}

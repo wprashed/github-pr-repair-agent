@@ -1,242 +1,251 @@
 # Autonomous GitHub Pull Request Repair Agent
 
-A production-grade Python application designed for continuous, unattended monitoring of GitHub pull requests. When review feedback (e.g. `REQUEST_CHANGES` or code review comments) or CI workflow checks fail, the application automatically orchestrates an AI coding agent (such as **Antigravity**) to diagnose problems, perform surgical code modifications in isolated workspaces, execute local verification test suites, validate strict git diff safety constraints, and push verified fixes back to the PR branch.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com/)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB.svg)](https://reactjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests: 24 Passed](https://img.shields.io/badge/Tests-24%20Passed-brightgreen.svg)](tests/)
+
+A production-ready autonomous agent for continuous, unattended monitoring and automated surgical repair of GitHub Pull Requests. When code reviews (such as `CHANGES_REQUESTED` or inline comments) or CI workflow checks fail, the application orchestrates an AI coding agent (**Google Antigravity**) to diagnose root causes, prepare isolated workspaces, execute verified code fixes, inspect git diff safety constraints, and push fixes safely back to the PR branch.
 
 ---
 
-## 1. Core Workflow
+## 1. Key Capabilities
 
-```text
-               +----------------------------------------+
-               | Background Service (APScheduler)       |
-               +-------------------+--------------------+
-                                   | Every N hours / Scan Now
-                                   v
-               +----------------------------------------+
-               | GitHub Discovery & Event Deduplication  |
-               +-------------------+--------------------+
-                                   | Action Required?
-                 +-----------------+-----------------+
-                 | No                                | Yes
-                 v                                   v
-         +---------------+         +------------------------------------+
-         |   Sleep       |         | Concurrency Lock & Attempt Limits  |
-         +---------------+         +-----------------+------------------+
-                                                     |
-                                                     v
-                                   +------------------------------------+
-                                   | Isolated Workspace & PR Context    |
-                                   +-----------------+------------------+
-                                                     |
-                                                     v
-                                   +------------------------------------+
-                                   | Antigravity AI Coding Agent        |
-                                   +-----------------+------------------+
-                                                     |
-                                                     v
-                                   +------------------------------------+
-                                   | Verification Suites (Test/Lint)    |
-                                   +-----------------+------------------+
-                                                     | Pass
-                                                     v
-                                   +------------------------------------+
-                                   | Git Diff Safety & Secret Scanner   |
-                                   +-----------------+------------------+
-                                                     | Safe
-                                                     v
-                                   +------------------------------------+
-                                   | Auto Push or Human Approval Mode   |
-                                   +------------------------------------+
+- **Automated Event Detection**: Continuously monitors repositories for failed GitHub Actions workflow runs, failed check suites, inline code review comments, and change request reviews (`CHANGES_REQUESTED`).
+- **Antigravity AI Coding Agent**: Leverages Antigravity (`flash`, `flash_lite`, or `pro` models) with surgical repair prompts tailored strictly to fix reported issues while preserving existing codebase architecture.
+- **Enterprise Git Safety Guardrails**:
+  - **Zero Force-Pushing**: `--force` is strictly rejected and prohibited at the subprocess layer.
+  - **Protected Branch Enforcement**: Automatically blocks pushes to `main`, `master`, `develop`, `release/*`, `staging`, or `production`.
+  - **Never Auto-Merges or Closes PRs**: Final review and merge decisions always remain with repository maintainers.
+  - **Secret & Sensitive File Scanner**: Diff inspection blocks leaks of API tokens, private keys, `.env`, credentials, or SSH keys before commit/push.
+  - **Configurable Diff Thresholds**: Enforces limits on maximum files changed and lines added/deleted.
+- **Modern Single-Page SaaS Dashboard**:
+  - React 18 SPA styled with Tailwind CSS and flat single-color vector icons (zero emojis).
+  - Dual layout views: **Interactive Table View** and **Bento Grid View**.
+  - 10-row pagination with jump-to-page navigation and real-time status/repo filters.
+  - Full-featured PR details modal with unified git diff viewer and repair history logs.
+  - One-click manual actions: **Trigger Repair**, **Approve & Push Fix**, **Stop Automation**.
+- **Flexible GitHub Authentication**: Supports GitHub **Device Flow OAuth 2.0** (one-click browser authorization) or **Personal Access Tokens (PAT)**.
+- **Multi-Repository & Organization Management**: Monitor and repair across multiple repositories simultaneously with concurrency lock protection.
+
+---
+
+## 2. Architecture & Workflow
+
+```mermaid
+flowchart TD
+    A[Periodic APScheduler / Manual Trigger] --> B[GitHub Event Discovery]
+    B --> C{Action Required?}
+    C -- No --> D[Idle / Sleep]
+    C -- Yes --> E[Event Deduplication & Concurrency Lock]
+    E --> F[Isolated Workspace & PR Context Builder]
+    F --> G[Antigravity AI Coding Agent]
+    G --> H[Local Verification Suite Test / Lint]
+    H -- Failed --> I[Record Error & Cap Retry Attempts]
+    H -- Passed --> J[Git Diff Safety & Secret Scanner]
+    J -- Violation --> K[Requires Human Review]
+    J -- Safe --> L{Automation Mode?}
+    L -- Auto Mode --> M[Safe Git Commit & Push to PR Branch]
+    L -- Approval Mode --> N[Hold for Human Approval in Dashboard]
+    M --> O[Update Status to Repaired]
+    N --> P[One-Click Push from Dashboard]
 ```
 
-1. **Continuously monitors** configured GitHub repositories on a periodic schedule (e.g., every 3 hours) or manual trigger.
-2. **Detects actionable events**:
-   - New code review comments (inline line comments).
-   - Reviews requesting changes (`CHANGES_REQUESTED`).
-   - PR discussion comments.
-   - Failed GitHub Actions workflow jobs and steps.
-   - Failed check runs and commit statuses.
-3. **Prevents duplicate processing**: Stores all event IDs in a SQLite database; identical review comments or check runs are never re-processed.
-4. **Collects PR context**: Pulls PR description, diffs, comments, CI failure summaries, and repository-specific instruction files (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `README.md`) into a structured `pr-context.md`.
-5. **Drives Coding Agent**: Provides a surgical repair prompt to Antigravity instructing it to fix only the reported problems while preserving codebase architecture.
-6. **Executes verification**: Runs repository-defined test, lint, static analysis, and security checks.
-7. **Inspects git diff safety**: Verifies change size thresholds (max files, max lines added/deleted), blocks forbidden files (`.env`, `credentials.json`, `*.pem`, `id_rsa`), and scans for leaked secrets.
-8. **Enforces conservative push guardrails**:
-   - Strictly pushes **only** to the origin PR branch (`git push origin <PR_BRANCH>`).
-   - **Never** force-pushes (`--force` is strictly prohibited).
-   - **Never** pushes to protected branches (`main`, `master`, `develop`).
-   - **Never** automatically merges or closes a pull request.
-9. **Caps repair attempts**: Stops automatically after a configurable threshold (default 3 attempts) and sends alerts.
+### Step-by-Step Lifecycle:
+1. **Discovery & Deduplication**: Fetches open PRs and extracts recent CI checks and review comments. Compares event IDs against SQLite to guarantee each comment/job is processed only once.
+2. **Context Compilation**: Generates a structured `pr-context.md` inside an isolated workspace (`workspaces/<repo>/pr-<n>`), combining changed files, review comments, CI logs, and repository instruction files (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`).
+3. **AI Code Repair**: Dispatches the repair task to Antigravity CLI (`agentapi`), instructing it to fix the issue without unnecessary refactoring.
+4. **Local Verification**: Executes configured repository commands (`pytest`, `npm test`, `flake8`, `mypy`, `cargo test`, etc.).
+5. **Diff Safety Audit**: Verifies change size limits, blocks forbidden files, and scans for secret patterns.
+6. **Push Guardrail Enforcement**: Pushes the verified commits strictly to the origin PR branch (`git push origin <PR_BRANCH>`).
 
 ---
 
-## 2. Architecture
+## 3. Project Structure
 
 ```text
 github-pr-repair-agent/
-│
 ├── app/
-│   ├── config/
-│   │   ├── settings.py          # Pydantic v2 settings loading from .env
-│   │   └── repositories.py      # YAML repository parser & validator
-│   │
-│   ├── github/
-│   │   ├── client.py            # Async httpx client with rate-limiting
-│   │   ├── prs.py               # PR discovery, details, file patches, diffs
-│   │   ├── reviews.py           # Review detection (CHANGES_REQUESTED)
-│   │   ├── comments.py          # Inline code comments & PR comments
-│   │   ├── checks.py            # Check runs and commit statuses
-│   │   └── actions.py           # Actions workflow runs & intelligent CI log parser
-│   │
+│   ├── api/
+│   │   └── routes.py            # FastAPI REST endpoints for dashboard & actions
 │   ├── agent/
 │   │   ├── base.py              # CodingAgent interface & RepairResult contract
 │   │   ├── antigravity.py       # Antigravity agent adapter (agentapi CLI / SDK)
-│   │   ├── mock.py              # Mock agent for deterministic testing
-│   │   ├── context.py           # PR Context builder (pr-context.md)
-│   │   └── prompts.py           # Surgical PR repair prompt templates
-│   │
-│   ├── workspace/
-│   │   ├── manager.py           # Isolated workspace lifecycle (workspaces/<repo>/pr-<n>)
-│   │   ├── git.py               # Safe Git subprocess runner & push guardrails
-│   │   └── cleanup.py           # Workspace retention & cleanup policy
-│   │
-│   ├── verification/
-│   │   ├── runner.py            # Test, lint, and static analysis runner
-│   │   └── diff.py              # Git diff safety inspector & secret scanner
-│   │
+│   │   ├── context.py           # Context generator (pr-context.md)
+│   │   ├── prompts.py           # Surgical PR repair prompt engineering
+│   │   └── mock.py              # Mock agent for deterministic testing
+│   ├── config/
+│   │   ├── settings.py          # Pydantic v2 settings loading from .env
+│   │   └── repositories.py      # YAML repository configuration validator
+│   ├── database/
+│   │   ├── database.py          # Async/sync SQLite session management
+│   │   └── models.py            # SQLAlchemy models (PRs, Events, Repairs)
+│   ├── github/
+│   │   ├── client.py            # Async httpx client with rate-limiting & auth
+│   │   ├── prs.py               # PR discovery, details, file patches, and diffs
+│   │   ├── reviews.py           # Review detection (CHANGES_REQUESTED)
+│   │   ├── comments.py          # Inline code comments & PR discussions
+│   │   ├── checks.py            # Check runs and commit statuses
+│   │   └── actions.py           # Actions workflow runs & CI log parser
 │   ├── monitoring/
-│   │   ├── scanner.py           # Main PR repair loop & event deduplicator
-│   │   ├── analyzer.py          # Review comments grouping & diagnostic synthesizer
+│   │   ├── scanner.py           # Core PR repair loop & event deduplicator
+│   │   ├── analyzer.py          # Review comment grouping & diagnostic synthesizer
 │   │   └── state.py             # Explicit state machine & concurrency locks
-│   │
-│   ├── scheduler/
-│   │   └── scheduler.py         # APScheduler background runner
-│   │
 │   ├── notifications/
-│   │   ├── base.py              # NotificationProvider interface
+│   │   ├── manager.py           # Notification dispatcher
 │   │   ├── console.py           # Rich terminal cards
 │   │   ├── slack.py             # Slack Incoming Webhooks
-│   │   ├── email.py             # SMTP email notifications
-│   │   └── manager.py           # Notification dispatcher & database logger
-│   │
-│   ├── database/
-│   │   ├── models.py            # SQLAlchemy models (PRs, Events, Repairs, Commits)
-│   │   └── database.py          # Async & sync engine and session management
-│   │
-│   ├── api/
-│   │   └── routes.py            # REST endpoints for dashboard & actions
-│   │
-│   ├── cli.py                   # Click CLI (`pr-agent start|scan|repair|status|doctor`)
-│   └── main.py                  # FastAPI server entrypoint
-│
+│   │   └── email.py             # SMTP email notifications
+│   ├── scheduler/
+│   │   └── scheduler.py         # APScheduler background runner
+│   ├── verification/
+│   │   ├── diff.py              # Git diff safety inspector & secret scanner
+│   │   └── runner.py            # Test, lint, and static analysis runner
+│   ├── workspace/
+│   │   ├── manager.py           # Isolated workspace lifecycle manager
+│   │   ├── git.py               # Safe Git subprocess runner & push guardrails
+│   │   └── cleanup.py           # Workspace retention & cleanup policy
+│   ├── cli.py                   # Click CLI entrypoint (`pr-agent`)
+│   └── main.py                  # FastAPI application entrypoint
 ├── dashboard/
-│   └── index.html               # Modern single-page web dashboard (React + Tailwind)
-│
+│   └── index.html               # Single-page web dashboard (React 18 + Tailwind CSS)
 ├── config/
 │   └── repositories.yaml        # Monitored repository specifications & check commands
-│
-├── tests/                       # 23 automated tests (unit, safety, and e2e)
+├── tests/                       # 24 automated unit, safety, and E2E tests
 ├── workspaces/                  # Isolated repair workspace directories
 ├── logs/                        # Runtime and agent execution logs
-├── data/                        # SQLite database storage
-├── Dockerfile
-├── docker-compose.yml
-├── pyproject.toml
-└── README.md
+├── data/                        # SQLite database storage (pr_agent.db)
+├── Dockerfile                   # Production container definition
+├── docker-compose.yml           # Multi-volume Docker deployment
+├── pyproject.toml               # Python project configuration & dependencies
+└── README.md                    # Project documentation
 ```
 
 ---
 
-## 3. Requirements
+## 4. Quickstart
 
-- **Python**: 3.10 or higher (tested and verified on Python 3.14).
-- **Git**: 2.30+ installed and available in `PATH`.
-- **Operating System**: macOS or Linux.
-- **Docker** (Optional): for containerized deployment.
-- **Antigravity**: `agentapi` CLI tool or Python SDK installed in the environment.
+### Prerequisites
+- **Python**: 3.10 or higher
+- **Git**: 2.30+ installed and on `PATH`
+- **Antigravity CLI**: `agentapi` installed in your environment
+- **Operating System**: macOS or Linux
 
----
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/wprashed/github-pr-repair-agent.git
+cd github-pr-repair-agent
 
-## 4. GitHub Authentication
+# Create virtual environment and activate
+python3 -m venv .venv
+source .venv/bin/activate
 
-1. Create a GitHub Personal Access Token (Classic or Fine-Grained) with:
-   - `repo` (Full control of private repositories, or public repo access)
-   - `workflow` (Optional, to inspect Actions workflows)
-2. Add token to your `.env` file:
-   ```bash
-   GITHUB_TOKEN=ghp_your_github_token_here
-   GITHUB_USERNAME=your-username
-   ```
-
----
-
-## 5. Antigravity Setup & Adapter
-
-The application interfaces with Antigravity through a pluggable `CodingAgent` abstraction:
-
-```python
-class CodingAgent:
-    async def repair(self, context: AgentContext) -> RepairResult:
-        raise NotImplementedError
+# Upgrade pip and install package in editable mode
+pip install --upgrade pip
+pip install -e ".[dev]"
 ```
 
-The implemented `AntigravityAgent` supports:
-- Invoking the Antigravity `agentapi` CLI (`agentapi new-conversation --model=<model> "<prompt>"`) directly inside the isolated workspace.
-- Configurable models: `flash_lite`, `flash`, or `pro` (default: `flash`).
-- Strict timeout management (default: 900 seconds).
-- Structured output parsing conforming to the agent completion contract:
-  ```json
-  {
-    "status": "success",
-    "summary": "Fixed course enrollment validation and updated unit tests.",
-    "files_changed": ["includes/class-api.php", "tests/test-api.php"],
-    "tests_run": ["pytest"],
-    "tests_passed": true,
-    "notes": ""
-  }
-  ```
-
----
-
-## 6. Configuration
-
-### `.env` File
+### Environment Configuration
 Copy `.env.example` to `.env` and set your credentials:
 ```bash
 cp .env.example .env
 ```
 
-Key environment variables:
+Example `.env`:
+```ini
+GITHUB_TOKEN=ghp_your_personal_access_token_here
+GITHUB_USERNAME=your_github_username
+AUTOMATION_MODE=auto
+AGENT_PROVIDER=antigravity
+ANTIGRAVITY_MODEL=flash
+SCHEDULER_INTERVAL_HOURS=3
+REPAIR_MAX_ATTEMPTS=3
+```
+
+### Diagnostic System Health Check
+Verify your environment and dependencies with the built-in diagnostic tool:
+```bash
+pr-agent doctor
+```
+
+```text
+Running PR Repair Agent Doctor Diagnostics...
+
+  ✔ Git installed: git version 2.50.1
+  ✔ GITHUB_TOKEN configured: ghp_...
+  ✔ Antigravity binary available at: /Users/.../.gemini/antigravity/bin/agentapi
+  ✔ Configuration loaded: repositories defined in repositories.yaml
+  ✔ SQLite Database initialized at: sqlite:///./data/pr_agent.db
+
+Diagnostics complete.
+```
+
+### Start the Service & Web Dashboard
+```bash
+pr-agent start --port 8000
+```
+Open your browser to: **`http://localhost:8000`**
+
+---
+
+## 5. Web Dashboard Features
+
+The dashboard provides real-time visibility and control over all tracked repositories and pull requests:
+
+- **Metrics Bar**: Instant stats for Total Monitored PRs, Needs Repair, In Progress, Repaired, and Blocked/Failed.
+- **Dual View Modes**: Switch seamlessly between **Interactive Table View** and **Bento Grid / Card View**.
+- **Pagination & Filters**:
+  - Max 10 rows per page with page jump navigation.
+  - Multi-status filter tabs (`ALL`, `NEEDS_REPAIR`, `IN_PROGRESS`, `REPAIRED`, `REQUIRES_HUMAN_REVIEW`, `BLOCKED/FAILED`).
+  - Instant search filter by PR Title, PR #, Author, or Branch name.
+- **Interactive PR Detail Modal**:
+  - **Overview Tab**: PR author, head/base branches, failure diagnosis, and repair attempts history.
+  - **Diff Tab**: Live unified syntax-highlighted git diff with file line counts.
+  - **History Tab**: Complete timestamped audit trail of agent diagnoses, test outputs, and execution logs.
+- **Repository Management**: Add, remove, and sync monitored repositories with custom test and lint rules.
+- **Integrations & Settings**:
+  - Connect GitHub via **Device Flow OAuth** or **Personal Access Token**.
+  - Choose Antigravity model (`flash`, `flash_lite`, `pro`) and test binary connectivity.
+
+---
+
+## 6. Configuration Reference
+
+### Environment Variables (`.env`)
+
 | Variable | Default | Description |
 |---|---|---|
-| `GITHUB_TOKEN` | *None* | GitHub Personal Access Token |
-| `GITHUB_USERNAME` | *None* | Your GitHub username (filters PRs if enabled) |
-| `SCHEDULER_INTERVAL_HOURS` | `3` | Periodic scan frequency in hours |
-| `AUTOMATION_MODE` | `auto` | `auto` (auto commit & push) or `approval` (waits for review) |
+| `GITHUB_TOKEN` | *None* | GitHub Personal Access Token or OAuth Token |
+| `GITHUB_USERNAME` | *None* | Your GitHub username (used to filter PRs if `only_my_prs: true`) |
+| `AUTOMATION_MODE` | `auto` | `auto` (auto commit & push) or `approval` (holds for human review) |
 | `AGENT_PROVIDER` | `antigravity` | Agent to use (`antigravity` or `mock`) |
-| `ANTIGRAVITY_MODEL` | `flash` | Antigravity model: `flash_lite`, `flash`, `pro` |
-| `SAFETY_MAX_FILES_CHANGED`| `20` | Max files changed in repair diff |
-| `SAFETY_MAX_LINES_ADDED` | `1000` | Max lines added in repair diff |
-| `REPAIR_MAX_ATTEMPTS` | `3` | Max repair attempts per PR |
+| `ANTIGRAVITY_MODEL` | `flash` | Model selection: `flash`, `flash_lite`, `pro` |
+| `ANTIGRAVITY_BIN_PATH` | *Auto-detected* | Path to `agentapi` binary |
+| `SCHEDULER_INTERVAL_HOURS` | `3` | Periodic background scan frequency in hours |
+| `REPAIR_MAX_ATTEMPTS` | `3` | Max automated repair attempts per PR before halting |
+| `SAFETY_MAX_FILES_CHANGED`| `20` | Max changed files allowed in a single repair diff |
+| `SAFETY_MAX_LINES_ADDED` | `1000` | Max lines added allowed in a repair diff |
+| `SAFETY_MAX_LINES_DELETED`| `1000` | Max lines deleted allowed in a repair diff |
 | `SLACK_WEBHOOK_URL` | *None* | Slack Incoming Webhook URL for alerts |
 
-### `config/repositories.yaml`
-Define the repositories to monitor and their specific test/lint check commands:
+### Repository Configuration (`config/repositories.yaml`)
+
 ```yaml
 repositories:
-  - name: my-project
-    github: my-org/my-project
+  - name: frontend-app
+    github: my-org/frontend-app
     enabled: true
     pull_requests:
       only_my_prs: true
       only_open_prs: true
     checks:
       test:
-        - "pytest tests/"
+        - "npm test -- --passWithNoTests"
       lint:
-        - "flake8 src/"
-      static_analysis:
-        - "mypy src/"
+        - "npm run lint"
     safety:
       max_files_changed: 15
       max_lines_added: 500
@@ -249,146 +258,103 @@ repositories:
 
 ---
 
-## 7. Running Locally
+## 7. Safety Invariants & Guardrails
 
-### Installation
-```bash
-git clone https://github.com/your-org/github-pr-repair-agent.git
-cd github-pr-repair-agent
+The agent operates under a strict defense-in-depth safety architecture:
 
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install in editable mode
-pip install --upgrade pip
-pip install -e ".[dev]"
-```
-
-### Run System Health Check
-```bash
-pr-agent doctor
-```
-
-Output:
-```text
-Running PR Repair Agent Doctor Diagnostics...
-
-  ✔ Git installed: git version 2.50.1
-  ✔ GITHUB_TOKEN configured: ghp_...
-  ✔ Antigravity binary available at: /Users/rashed/.gemini/antigravity/bin/agentapi
-  ✔ Configuration loaded: 1 repository/ies defined in repositories.yaml
-  ✔ SQLite Database initialized at: sqlite:///./data/pr_agent.db
-
-Diagnostics complete.
-```
-
-### Start the Agent & Web Dashboard
-```bash
-pr-agent start
-```
-The FastAPI server and React dashboard will be available at: **`http://localhost:8000`**.
+| Guardrail | Enforcement Level | Behavior |
+|---|---|---|
+| **No Protected Branch Pushes** | Subprocess & API | Pushes to `main`, `master`, `develop`, etc. are rejected and aborted immediately. |
+| **No Force-Pushes** | Subprocess | `--force` or `+refs` are strictly blocked. |
+| **No Automatic PR Closure / Merge** | GitHub Client | The agent has no code path to merge or close pull requests. |
+| **Secret Leak Scanner** | Pre-Push Diff Inspector | Blocks tokens, AWS credentials, Slack webhooks, and private RSA/PEM keys. |
+| **Forbidden File Protection** | Pre-Push Diff Inspector | Blocks `.env`, `credentials.json`, `id_rsa`, `*.pem`, `*.key`. |
+| **Threshold Limits** | Verification Engine | Changes exceeding file or line thresholds transition to `REQUIRES_HUMAN_REVIEW`. |
+| **Attempt Caps** | State Machine | Exceeding `max_attempts` halts automation on the PR to prevent infinite loops. |
 
 ---
 
-## 8. Running with Docker
-
-Use Docker Compose for containerized, background operation with persistent volumes for data, workspaces, and logs:
+## 8. CLI Reference
 
 ```bash
-docker-compose up -d --build
+pr-agent --help
 ```
-
-Inspect container status and logs:
-```bash
-docker-compose logs -f pr-agent
-```
-
----
-
-## 9. Safety Model & Push Guardrails
-
-The application was built with a strict conservative safety model.
-
-### Absolute Invariants:
-1. **Never Merges a PR**: Automatic merging is strictly prohibited.
-2. **Never Closes a PR**: PR lifecycle closure requires human action.
-3. **Never Force-Pushes**: Git push explicitly forbids `--force`.
-4. **Never Touches Protected Branches**: Operations targeting `main`, `master`, `develop`, `release`, `staging`, `production` are aborted immediately.
-5. **No Secret Leaks**: Before commit or push, diffs are scanned for AWS keys, GitHub tokens, Slack tokens, and private keys.
-6. **Forbidden Files**: `.env`, credentials, `*.pem`, `id_rsa`, and SSH keys cannot be added or committed.
-7. **Threshold Controls**: Diffs that touch more than `max_files_changed` or add more than `max_lines_added` are held for human review (`REQUIRES_HUMAN_REVIEW`).
-
----
-
-## 10. Approval Mode vs. Auto Mode
-
-### Auto Mode (`AUTOMATION_MODE=auto`)
-1. Agent diagnoses and fixes code.
-2. Verification tests pass.
-3. Diff safety checks pass.
-4. Agent commits changes and pushes directly to the existing PR branch.
-
-### Approval Mode (`AUTOMATION_MODE=approval`)
-1. Agent diagnoses and fixes code.
-2. Verification tests pass.
-3. PR transitions to **`REQUIRES_HUMAN_REVIEW`**.
-4. The verified diff is rendered on the Web Dashboard.
-5. Pushing is paused until a human clicks **"Approve & Push Fix"** in the Dashboard or calls `/api/pull-requests/{id}/approve`.
-
----
-
-## 11. CLI Commands Reference
 
 | Command | Usage | Description |
 |---|---|---|
-| `pr-agent connect` | `pr-agent connect` | Interactively configure and test GitHub & Antigravity connections |
-| `pr-agent doctor` | `pr-agent doctor` | Runs diagnostic health check on environment |
-| `pr-agent start` | `pr-agent start [--host 0.0.0.0] [--port 8000]` | Starts service and web dashboard |
-| `pr-agent scan` | `pr-agent scan [--repo owner/repo] [--pr 123]` | Triggers manual scan across repositories |
-| `pr-agent repair` | `pr-agent repair --repo owner/repo --pr 123` | Forces repair pipeline for a specific PR |
-| `pr-agent status` | `pr-agent status` | Displays tabular status of monitored PRs |
-| `pr-agent logs` | `pr-agent logs [--limit 10]` | Shows recent repair attempt logs and outcomes |
+| `connect` | `pr-agent connect` | Interactive configuration for GitHub and Antigravity |
+| `doctor` | `pr-agent doctor` | Runs diagnostic health checks on tools and environment |
+| `start` | `pr-agent start [--host 0.0.0.0] [--port 8000]` | Starts FastAPI server and background scheduler |
+| `scan` | `pr-agent scan [--repo owner/repo] [--pr 123]` | Triggers manual scan across repositories |
+| `repair` | `pr-agent repair --repo owner/repo --pr 123` | Forces execution of repair pipeline on a specific PR |
+| `status` | `pr-agent status` | Prints a formatted terminal table of monitored PRs |
+| `logs` | `pr-agent logs [--limit 10]` | Shows recent repair attempts and output logs |
 
 ---
 
-## 12. REST API Reference
+## 9. REST API Reference
 
-- `GET /api/health` - Health check and system mode.
-- `GET /api/status` - Aggregated metric counters for dashboard.
-- `GET /api/settings/integrations` - Get GitHub & Antigravity connection status.
-- `POST /api/settings/integrations` - Save GitHub & Antigravity configuration.
-- `POST /api/settings/test-github` - Test GitHub authentication.
-- `POST /api/settings/test-antigravity` - Test Antigravity binary availability.
-- `GET /api/repositories` - List configured repositories.
-- `GET /api/pull-requests` - List tracked PRs (filterable by `status` and `repo`).
-- `GET /api/pull-requests/{id}` - Complete details, status, and latest diff.
-- `GET /api/pull-requests/{id}/repairs` - Full repair attempt history.
-- `POST /api/scan` - Trigger an immediate scan across all repositories.
-- `POST /api/pull-requests/{id}/repair` - Queue repair for a PR.
-- `POST /api/pull-requests/{id}/approve` - Approve verified changes and push to branch.
-- `POST /api/pull-requests/{id}/stop` - Halt automated repairs on a PR.
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | Service health status and automation mode |
+| `GET` | `/api/status` | Aggregated dashboard metric counters |
+| `GET` | `/api/pull-requests` | List tracked PRs (supports `status`, `repo`, `page`, `page_size` query params) |
+| `GET` | `/api/pull-requests/{id}` | Complete PR details, diagnosis, and latest git diff |
+| `GET` | `/api/pull-requests/{id}/repairs`| Full repair attempt audit history |
+| `POST` | `/api/scan` | Trigger an immediate scan across all repositories |
+| `POST` | `/api/pull-requests/{id}/repair` | Queue a manual repair run for a PR |
+| `POST` | `/api/pull-requests/{id}/approve`| Approve verified changes and push to PR branch |
+| `POST` | `/api/pull-requests/{id}/stop` | Halt automated repair attempts on a PR |
+| `GET` | `/api/repositories` | List monitored repositories |
+| `POST` | `/api/repositories` | Add or update monitored repository config |
+| `DELETE`| `/api/repositories/{id}` | Remove a repository from monitoring |
+| `GET` | `/api/settings/integrations` | Inspect GitHub & Antigravity connection status |
+| `POST` | `/api/settings/integrations` | Save GitHub & Antigravity credentials |
+| `POST` | `/api/settings/test-github` | Validate GitHub authentication |
+| `POST` | `/api/settings/test-antigravity`| Validate Antigravity CLI and model availability |
+| `POST` | `/api/auth/github/device/start` | Initialize GitHub Device Flow OAuth |
+| `POST` | `/api/auth/github/device/poll` | Poll GitHub Device Flow OAuth completion |
 
 ---
 
-## 13. Running Automated Tests
+## 10. Running Automated Tests
 
-Run the full pytest test suite:
+Run the full pytest suite with async support:
 ```bash
 pytest -v tests/
 ```
 
-Test coverage includes:
-- GitHub PR discovery, review detection, and CI log extraction.
-- Agent abstraction, prompt generation, and context generation.
-- Push guardrails, protected branch rejection, and force-push blocking.
-- Diff safety thresholds, forbidden files (`.env`), and secret scanning.
-- Multi-language verification runner and command timeout handling.
-- State transitions, concurrency locking, and attempt limit enforcement.
-- End-to-end simulated acceptance test demonstrating full repair lifecycle.
+Test suite coverage includes:
+- **Agent Abstraction & Context Builder**: Verifies surgical prompt formatting and instruction parsing (`tests/test_agent.py`).
+- **Diff & Secret Safety**: Tests detection of `.env` files, leaked API secrets, and excessive diffs (`tests/test_diff_safety.py`).
+- **Git Push Guardrails**: Verifies rejection of force-pushes, protected branches, and repository mismatches (`tests/test_git_safety.py`).
+- **GitHub Integration**: Tests PR listing, change request review detection, and CI log parser (`tests/test_github.py`).
+- **State Machine & Locks**: Tests valid state transitions and concurrency locking (`tests/test_state_machine.py`).
+- **Verification Runner**: Tests multi-command test/lint execution, timeout handling, and failure capture (`tests/test_verification.py`).
+- **End-to-End Workflow**: Full lifecycle simulation from event detection to workspace preparation, agent execution, verification, and database state update (`tests/test_e2e_workflow.py`).
 
 ---
 
-## 14. License
+## 11. Running with Docker
 
-Released under the [MIT License](LICENSE).
+Deploy with Docker Compose for containerized, persistent background execution:
+
+```bash
+# Build and start container
+docker-compose up -d --build
+
+# Follow logs
+docker-compose logs -f pr-agent
+```
+
+Persistent volumes are configured for:
+- `data/`: SQLite database storage (`pr_agent.db`)
+- `workspaces/`: Isolated repository workspaces
+- `logs/`: Application and agent execution logs
+
+---
+
+## 12. License
+
+This project is licensed under the [MIT License](LICENSE).
+

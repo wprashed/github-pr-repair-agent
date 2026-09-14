@@ -284,6 +284,7 @@ class PRRepairScanner:
         failed_checks: list,
         failed_jobs: list,
     ) -> None:
+        repo_full_name = repo_cfg.github
         # Check if repairs are globally disabled
         if not settings.REPAIRS_ENABLED:
             logger.info("Automatic repairs are disabled (REPAIRS_ENABLED=False). Halting pipeline for PR #%d (%s).", pr.number, repo_full_name)
